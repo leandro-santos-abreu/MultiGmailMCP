@@ -216,6 +216,45 @@ def gmail_send_draft(account: str, draft_id: str, confirm: str = "") -> str:
     return f"Sent from '{account}' (message_id={result['message_id']})."
 
 
+# --- Account & mailbox metadata (read-only) ------------------------------
+
+
+@server.tool(
+    annotations=ToolAnnotations(read_only_hint=True, idempotent_hint=True, open_world_hint=True)
+)
+def gmail_account_info(account: str) -> str:
+    """Show which real Gmail address a configured account name maps to, plus
+    total message/thread counts. Use to confirm you're about to act on the
+    right inbox.
+
+    Args:
+        account: name of a configured account
+    """
+    try:
+        info = gmail_client.account_info(account)
+    except accounts.AccountError as e:
+        return str(e)
+    return json.dumps(info, indent=2)
+
+
+@server.tool(
+    annotations=ToolAnnotations(read_only_hint=True, idempotent_hint=True, open_world_hint=True)
+)
+def gmail_list_labels(account: str) -> str:
+    """List an account's labels as {id, name, type}. Use to translate the
+    labelIds returned by gmail_read, or to find a label's id for the
+    organize-mail tools (gmail_modify_labels, etc.) or a `label:"Name"` search.
+
+    Args:
+        account: name of a configured account
+    """
+    try:
+        labels = gmail_client.list_labels(account)
+    except accounts.AccountError as e:
+        return str(e)
+    return json.dumps(labels, indent=2) if labels else "No labels found."
+
+
 # --- Mailbox organisation (gmail.modify) ---------------------------------
 # Every tool below CHANGES mailbox state. The one safety rule they all share:
 # act only on an explicit instruction from the user in this conversation —

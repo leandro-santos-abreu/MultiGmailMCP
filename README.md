@@ -107,6 +107,8 @@ for invoices from this month."*
 | Tool | What it does |
 |---|---|
 | `list_accounts` | Lists configured account names |
+| `gmail_account_info(account)` | Shows the real email address behind an account name, plus message/thread totals |
+| `gmail_list_labels(account)` | Lists an account's labels as id/name/type |
 | `gmail_search(account, query, max_results)` | Searches using Gmail's own query syntax (`from:`, `is:unread`, `after:`, etc.) |
 | `gmail_read(account, message_id)` | Returns full headers + body of one message |
 | `gmail_draft(account, to, subject, body, cc, thread_id)` | Creates a draft — never sends |

@@ -1,6 +1,7 @@
 # Spec 006 — Account identity and label listing
 
-- **Status:** proposed
+- **Status:** **implemented** — `gmail_account_info` + `gmail_list_labels` ship
+  in `gmail_client.py` / `server.py`, tested in `tests/test_metadata.py`.
 - **Tier:** 1 (fits existing `gmail.readonly` scope — no reauthorization)
 - **New scope required:** none
 - **Destructive:** no

@@ -178,6 +178,33 @@ def list_drafts(account_name: str, max_results: int = 10) -> list[dict]:
     return drafts
 
 
+# --- Account & mailbox metadata (gmail.readonly) -------------------------
+
+
+def account_info(account_name: str) -> dict:
+    """Resolve a configured account name to the real Gmail address behind it,
+    plus a couple of harmless totals. No token/credential material is returned."""
+    service = _service(account_name)
+    profile = service.users().getProfile(userId="me").execute()
+    return {
+        "account": account_name,
+        "email_address": profile.get("emailAddress", ""),
+        "messages_total": profile.get("messagesTotal", 0),
+        "threads_total": profile.get("threadsTotal", 0),
+    }
+
+
+def list_labels(account_name: str) -> list[dict]:
+    """List the account's labels as {id, name, type}. Use to translate the
+    labelIds from gmail_read, or to find the id a modify tool needs."""
+    service = _service(account_name)
+    resp = service.users().labels().list(userId="me").execute()
+    return [
+        {"id": lbl["id"], "name": lbl["name"], "type": lbl.get("type", "")}
+        for lbl in resp.get("labels", [])
+    ]
+
+
 # --- Mailbox organisation (gmail.modify) ---------------------------------
 # Message-state changes all reduce to one messages.modify (adding/removing
 # system or user label ids); trash/untrash and label CRUD are their own calls.
