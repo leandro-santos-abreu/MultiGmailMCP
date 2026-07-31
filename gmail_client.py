@@ -55,6 +55,21 @@ def search_messages(account_name: str, query: str, max_results: int = 10) -> lis
     return results
 
 
+def search_all(query: str, max_results_per_account: int = 5) -> dict:
+    """Run one query against every configured account, returning results grouped
+    by account name. An account whose authorization has expired/revoked is
+    recorded as {"error": ...} rather than sinking the whole sweep — partial
+    success is the point of a fan-out. Other (global) failures still propagate.
+    """
+    out: dict = {}
+    for name in accounts.list_account_names():
+        try:
+            out[name] = search_messages(name, query, max_results_per_account)
+        except accounts.AccountError as e:
+            out[name] = {"error": str(e)}
+    return out
+
+
 def _extract_body(payload: dict) -> str:
     """Walk a MIME payload tree and return the first plain-text part found,
     falling back to HTML if no plain-text part exists."""

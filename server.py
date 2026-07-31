@@ -91,6 +91,26 @@ def gmail_search(account: str, query: str, max_results: int = 10) -> str:
 @server.tool(
     annotations=ToolAnnotations(read_only_hint=True, idempotent_hint=True, open_world_hint=True)
 )
+def gmail_search_all(query: str, max_results_per_account: int = 5) -> str:
+    """Search ALL configured Gmail accounts with one query and return matches
+    grouped by account. Use for cross-account questions ("anything from Acme in
+    any inbox?"); use gmail_search when the user names a specific account. An
+    account whose authorization has expired shows up as an {"error": ...} entry
+    instead of failing the whole search.
+
+    Args:
+        query: a Gmail search query (same syntax as gmail_search)
+        max_results_per_account: cap on messages returned per account (default 5)
+    """
+    results = gmail_client.search_all(query, max_results_per_account)
+    if not results:
+        return "No accounts configured yet. Run `python add_account.py <name>` first."
+    return json.dumps(results, indent=2)
+
+
+@server.tool(
+    annotations=ToolAnnotations(read_only_hint=True, idempotent_hint=True, open_world_hint=True)
+)
 def gmail_read(account: str, message_id: str) -> str:
     """Read the full contents (headers + body) of one email.
 

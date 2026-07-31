@@ -1,6 +1,8 @@
 # Spec 003 — Search every account at once
 
-- **Status:** proposed
+- **Status:** **implemented** — `gmail_search_all` ships in `gmail_client.py` /
+  `server.py`, tested in `tests/test_cross_account_search.py`. Per-account
+  handling catches `AccountError` only (see note below), not all exceptions.
 - **Tier:** 1 (fits existing `gmail.readonly` scope — no reauthorization)
 - **New scope required:** none
 - **Destructive:** no
