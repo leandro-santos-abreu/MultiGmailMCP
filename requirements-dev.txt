@@ -1,0 +1,6 @@
+# Dev-only dependencies (test suite). Kept separate from requirements.txt so the
+# server's runtime dependency set stays exactly as pinned there.
+#   .venv/Scripts/pip install -r requirements-dev.txt   (Windows)
+#   venv/bin/pip install -r requirements-dev.txt        (macOS/Linux)
+-r requirements.txt
+pytest==8.3.4

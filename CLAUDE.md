@@ -10,12 +10,15 @@ it's deliberately not a duplicate of the README.
 - `gmail_client.py` — thin Gmail API wrapper; every function takes `account_name` first and resolves credentials itself via `accounts.load_credentials`
 - `server.py` — MCP tool definitions (stdio transport); thin wrappers around `gmail_client`
 - `add_account.py` — one-time interactive OAuth CLI, not imported by the server
-- No automated test suite yet — see "Commands" below for the manual verification loop used instead
+- `tests/` — pytest suite that mocks `gmail_client._service`, so it runs offline with no real credentials or token files. Covers the pure helpers, the `AccountError` convention, and the send audit/confirm gate. The live-account manual loop below still covers what a fake can't (real OAuth/refresh, an actual send).
 
 ## Commands
 
 - Install deps: `venv/bin/pip install -r requirements.txt`
+- Install dev/test deps: `venv/bin/pip install -r requirements-dev.txt`
 - Compile-check after any edit: `venv/bin/python -m py_compile *.py`
+- Run the test suite (fast, offline, no credentials needed): `venv/bin/python -m pytest -q`
+  (the checked-in venv is actually `.venv/` on Windows: `.venv/Scripts/python -m pytest -q`)
 - Authorize an account (opens a real browser — must run locally, can't run headless): `venv/bin/python add_account.py <name>`
 - Exercise tools directly, without Claude Desktop or a live Gmail account:
   ```python
