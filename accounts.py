@@ -16,16 +16,18 @@ BASE_DIR = Path(__file__).resolve().parent
 TOKENS_DIR = BASE_DIR / "tokens"
 CREDENTIALS_FILE = BASE_DIR / "credentials.json"
 
-# Search/read, draft/send, and organise mail (labels, archive, read-state,
-# star, trash). Trash is recoverable — permanent deletion is deliberately NOT
-# here: the https://mail.google.com/ scope is excluded on purpose, so nothing
-# this server does is truly irreversible. Settings scopes (gmail.settings.basic
-# / .sharing) are added when specs 010/011 land; until then the token cannot
-# touch filters, forwarding, or delegation. See README "Scopes".
+# Search/read, draft/send, organise mail (labels, archive, read-state, star,
+# trash), and manage basic settings (filters, vacation, IMAP/POP). Trash is
+# recoverable — permanent deletion is deliberately NOT here: the
+# https://mail.google.com/ scope is excluded on purpose, so nothing this server
+# does is truly irreversible. gmail.settings.sharing (send-as, delegation) is
+# added when spec 011 lands — don't request a scope before a tool uses it. See
+# README "Scopes"; the settings tools carry extra confirm-before-acting guards.
 SCOPES = [
     "https://www.googleapis.com/auth/gmail.readonly",
     "https://www.googleapis.com/auth/gmail.compose",
     "https://www.googleapis.com/auth/gmail.modify",
+    "https://www.googleapis.com/auth/gmail.settings.basic",
 ]
 
 

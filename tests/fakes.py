@@ -91,6 +91,38 @@ class _Users:
         self._fake.calls.append(("users.getProfile", kw))
         return _Request(self._fake, "users.getProfile", kw)
 
+    def settings(self):
+        return _Settings(self._fake)
+
+
+class _Settings:
+    """users().settings() — sub-collections (filters/forwardingAddresses/
+    sendAs/delegates) plus direct verbs (getVacation, updateAutoForwarding,
+    getImap, ...). Direct verbs are recorded via __getattr__ as
+    "settings.<verb>"."""
+
+    def __init__(self, fake):
+        self._fake = fake
+
+    def filters(self):
+        return _Collection(self._fake, "filters")
+
+    def forwardingAddresses(self):
+        return _Collection(self._fake, "forwardingAddresses")
+
+    def sendAs(self):
+        return _Collection(self._fake, "sendAs")
+
+    def delegates(self):
+        return _Collection(self._fake, "delegates")
+
+    def __getattr__(self, name):
+        def verb(**kwargs):
+            key = f"settings.{name}"
+            self._fake.calls.append((key, kwargs))
+            return _Request(self._fake, key, kwargs)
+        return verb
+
 
 class FakeGmail:
     def __init__(self, responses=None):

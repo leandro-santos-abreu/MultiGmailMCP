@@ -1,7 +1,9 @@
 # Spec 010 — Mailbox settings: filters, vacation responder, IMAP/POP
 
-- **Status:** **accepted** — "Mailbox settings" was explicitly chosen (see
-  [README](README.md)).
+- **Status:** **implemented** — filters (list/create/delete), vacation (get/set),
+  and IMAP/POP (get/set) ship in `gmail_client.py` / `server.py`. All mutating
+  tools honour the shared `GMAIL_MCP_SEND_PHRASE` gate (`_phrase_blocks`). Tested
+  in `tests/test_settings.py`.
 - **Scope added:** `gmail.settings.basic`
 - **Destructive:** no permanent data loss, but everything here is **persistent
   configuration** — it outlives the conversation and keeps acting on future mail.

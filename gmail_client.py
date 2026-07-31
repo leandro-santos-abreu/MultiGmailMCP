@@ -477,3 +477,100 @@ def delete_label(account_name: str, label_id: str) -> dict:
     service = _service(account_name)
     service.users().labels().delete(userId="me", id=label_id).execute()
     return {"deleted": label_id}
+
+
+# --- Account settings: filters, vacation, IMAP/POP (gmail.settings.basic) ---
+# These change *persistent* configuration that keeps acting on future mail.
+# A filter's action can forward or trash — that's an exfiltration/data-loss
+# vector, so the server layer gates these behind the confirmation phrase and
+# the "only on explicit user instruction" docstrings.
+
+
+def list_filters(account_name: str) -> list[dict]:
+    service = _service(account_name)
+    resp = service.users().settings().filters().list(userId="me").execute()
+    return resp.get("filter", [])
+
+
+def create_filter(account_name: str, criteria: dict, action: dict) -> dict:
+    """Create a filter from a Gmail Filter resource's criteria + action dicts.
+    Note actions can include `forward` (to a verified address) and label edits
+    that skip the inbox or trash mail."""
+    service = _service(account_name)
+    created = (
+        service.users()
+        .settings()
+        .filters()
+        .create(userId="me", body={"criteria": criteria, "action": action})
+        .execute()
+    )
+    return {
+        "filter_id": created.get("id", ""),
+        "criteria": created.get("criteria", {}),
+        "action": created.get("action", {}),
+    }
+
+
+def delete_filter(account_name: str, filter_id: str) -> dict:
+    service = _service(account_name)
+    service.users().settings().filters().delete(userId="me", id=filter_id).execute()
+    return {"deleted": filter_id}
+
+
+def get_vacation(account_name: str) -> dict:
+    service = _service(account_name)
+    return service.users().settings().getVacation(userId="me").execute()
+
+
+def set_vacation(
+    account_name: str,
+    enabled: bool,
+    subject: str = "",
+    body_text: str = "",
+    restrict_to_contacts: bool = True,
+    restrict_to_domain: bool = True,
+    start_ms: int | None = None,
+    end_ms: int | None = None,
+) -> dict:
+    """Update the vacation auto-responder. Defaults are conservative
+    (contacts-only, domain-only) so an enabled responder can't auto-reply to
+    the whole internet unless the caller deliberately widens it."""
+    service = _service(account_name)
+    body: dict = {
+        "enableAutoReply": enabled,
+        "responseSubject": subject,
+        "responseBodyPlainText": body_text,
+        "restrictToContacts": restrict_to_contacts,
+        "restrictToDomain": restrict_to_domain,
+    }
+    if start_ms:
+        body["startTime"] = start_ms
+    if end_ms:
+        body["endTime"] = end_ms
+    return service.users().settings().updateVacation(userId="me", body=body).execute()
+
+
+def get_imap(account_name: str) -> dict:
+    service = _service(account_name)
+    return service.users().settings().getImap(userId="me").execute()
+
+
+def set_imap(account_name: str, enabled: bool) -> dict:
+    service = _service(account_name)
+    return service.users().settings().updateImap(userId="me", body={"enabled": enabled}).execute()
+
+
+def get_pop(account_name: str) -> dict:
+    service = _service(account_name)
+    return service.users().settings().getPop(userId="me").execute()
+
+
+def set_pop(account_name: str, access_window: str, disposition: str = "leaveInInbox") -> dict:
+    """Update POP access. access_window is one of disabled / fromNowOn / allMail."""
+    service = _service(account_name)
+    return (
+        service.users()
+        .settings()
+        .updatePop(userId="me", body={"accessWindow": access_window, "disposition": disposition})
+        .execute()
+    )
