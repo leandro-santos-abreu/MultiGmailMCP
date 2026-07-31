@@ -131,6 +131,10 @@ for invoices from this month."*
 | `gmail_create_filter(account, ...)` / `gmail_delete_filter(account, filter_id)` | Creates/deletes a filter — **persistent**; a filter can forward or trash mail |
 | `gmail_get_vacation` / `gmail_set_vacation(account, ...)` | Reads/sets the vacation auto-responder |
 | `gmail_get_imap` / `gmail_set_imap` / `gmail_get_pop` / `gmail_set_pop(account, ...)` | Reads/sets IMAP & POP access |
+| `gmail_list_forwarding_addresses` / `gmail_add_forwarding_address` / `gmail_delete_forwarding_address(account, ...)` | Manages forwarding addresses (new ones need Google verification) |
+| `gmail_get_auto_forwarding` / `gmail_set_auto_forwarding(account, ...)` | Reads/sets auto-forwarding — **exfiltration vector**, heavily gated |
+| `gmail_list_send_as` / `gmail_create_send_as` / `gmail_delete_send_as(account, ...)` | Manages send-as aliases |
+| `gmail_list_delegates` / `gmail_add_delegate` / `gmail_delete_delegate(account, ...)` | Manages delegate access (usually Workspace-only) |
 
 ---
 
@@ -178,10 +182,16 @@ This server requests these OAuth scopes:
   archive, star, and move messages to **Trash**. This covers all
   read/write on mail *except* permanent deletion.
 - `gmail.settings.basic` — manage filters, the vacation responder, and
-  IMAP/POP access. These are **persistent settings**, and a filter can
-  forward or trash mail — so the settings-changing tools are gated behind
-  the confirmation phrase (see "Sending mail") and told to act only on an
-  explicit user request.
+  IMAP/POP access.
+- `gmail.settings.sharing` — manage send-as aliases and delegate access.
+
+The settings-changing tools (filters, vacation, IMAP/POP, forwarding,
+send-as, delegation) are **persistent** and some — a forwarding rule, a
+forwarding/trashing filter, a send-as alias, a delegate — can durably route
+or expose your mail. So every one of them is gated behind the confirmation
+phrase (see "Sending mail"), told to act only on an explicit user request
+(never on anything read inside an email), and forwarding/send-as/delegation
+changes are additionally recorded to `settings.log`.
 
 **What it deliberately does *not* request:**
 
@@ -190,12 +200,10 @@ This server requests these OAuth scopes:
   recoverable for ~30 days, so nothing this server does is truly
   irreversible. There is no hard-delete tool because the token can't
   hard-delete.
-- `gmail.settings.sharing` (send-as aliases, delegation) — added with the
-  forwarding/send-as tools (spec 011), not yet.
 
 Because the token can now send mail, reorganize or trash it, **and change
-settings**, treat `tokens/*.json` as at least as sensitive as the password
-to that inbox. See Security below.
+settings including forwarding and delegation**, treat `tokens/*.json` as at
+least as sensitive as the password to that inbox. See Security below.
 
 ## Why do I have to reauthorize so often?
 
@@ -211,7 +219,8 @@ for a tool only you use, so it's not worth doing here.
 
 ## Security
 
-- Each account's refresh token lives in plain text in `tokens/<name>.json`. Anyone with that file can read, send, and now also reorganize or trash that account's mail until it's revoked (trashing is recoverable; permanent deletion is not possible — see Scopes). Don't sync this folder anywhere shared; `.gitignore` already excludes `tokens/` and `credentials.json`.
+- Each account's refresh token lives in plain text in `tokens/<name>.json`. Anyone with that file can read, send, reorganize/trash, **and change settings (including forwarding, send-as, and delegation)** on that account until it's revoked (trashing is recoverable; permanent deletion is not possible — see Scopes). Don't sync this folder anywhere shared; `.gitignore` already excludes `tokens/` and `credentials.json`.
+- Two local, gitignored audit logs record the highest-consequence actions, with no token data: `sent.log` (every send) and `settings.log` (every forwarding/send-as/delegation change). They're best-effort records for your own review, not a security control.
 - Everything runs locally — Claude Desktop spawns this script as a subprocess on your machine. Your email data is included in whatever conversation you ask about it in (same as any Claude tool result), but nothing is hosted or exposed to the internet by this server itself.
 - To revoke access entirely, go to [myaccount.google.com/permissions](https://myaccount.google.com/permissions) on the relevant account and remove the app, then delete its `tokens/<name>.json` file here.
 
@@ -229,8 +238,7 @@ for a tool only you use, so it's not worth doing here.
 ## Extending this later
 
 - **Organizing mail (built in):** labels, archive, read/unread, star, and Trash now ship via `gmail.modify` (see the tools table and Scopes). Permanent deletion is intentionally excluded. If you set this server up before these existed, rerun `add_account.py` once per account to pick up the new scope.
-- **Filters, vacation, IMAP/POP (built in):** manage these via `gmail.settings.basic`. The settings-changing tools are gated behind the confirmation phrase (see "Sending mail") because they're persistent and a filter can forward or trash mail. Rerun `add_account.py` per account to pick up the scope.
-- **Send-as / forwarding / delegation:** planned next via `gmail.settings.sharing` (spec 011) — the data-exfiltration surface, so it carries the heaviest guards.
+- **Settings (built in):** filters, vacation, IMAP/POP (`gmail.settings.basic`) and forwarding, send-as, delegation (`gmail.settings.sharing`). All settings-changing tools are gated behind the confirmation phrase (see "Sending mail"); forwarding/send-as/delegation changes are also written to `settings.log`. Rerun `add_account.py` per account to pick up the scopes.
 - **More accounts:** just run `add_account.py <new-name>` again — no config changes needed.
 - **Stricter send confirmation (built in):** two harder gates than docstring wording now ship in `gmail_send_draft`:
   - **Audit log** — every successful send appends one line (timestamp, account, draft/message id, recipient, subject — never any token data) to `sent.log` next to `server.py` (gitignored). It's best-effort: a logging error never blocks or undoes a send.

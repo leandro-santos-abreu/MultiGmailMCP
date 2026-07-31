@@ -574,3 +574,122 @@ def set_pop(account_name: str, access_window: str, disposition: str = "leaveInIn
         .updatePop(userId="me", body={"accessWindow": access_window, "disposition": disposition})
         .execute()
     )
+
+
+# --- Forwarding, send-as, delegation --------------------------------------
+# The exfiltration surface. Each of these can durably route or expose a user's
+# mail. Google enforces natural gates the server relies on: a forwarding address
+# and an external send-as must be *verified* (Google emails the destination)
+# before they can be used, so add_forwarding_address only proposes a target.
+# Delegation is typically Workspace-only and errors on consumer @gmail.com.
+# forwardingAddresses/autoForwarding are settings.basic; sendAs/delegates are
+# settings.sharing.
+
+
+def list_forwarding_addresses(account_name: str) -> list[dict]:
+    service = _service(account_name)
+    resp = service.users().settings().forwardingAddresses().list(userId="me").execute()
+    return resp.get("forwardingAddresses", [])
+
+
+def add_forwarding_address(account_name: str, email: str) -> dict:
+    """Register a forwarding address. This only *proposes* it — Google emails the
+    destination a verification link, and auto-forwarding can't point at it until
+    that's confirmed. Returns the (usually 'pending') verification status."""
+    service = _service(account_name)
+    fa = (
+        service.users()
+        .settings()
+        .forwardingAddresses()
+        .create(userId="me", body={"forwardingEmail": email})
+        .execute()
+    )
+    return {
+        "forwarding_email": fa.get("forwardingEmail", email),
+        "verification_status": fa.get("verificationStatus", ""),
+    }
+
+
+def delete_forwarding_address(account_name: str, email: str) -> dict:
+    service = _service(account_name)
+    service.users().settings().forwardingAddresses().delete(
+        userId="me", forwardingEmail=email
+    ).execute()
+    return {"deleted": email}
+
+
+def get_auto_forwarding(account_name: str) -> dict:
+    service = _service(account_name)
+    return service.users().settings().getAutoForwarding(userId="me").execute()
+
+
+def set_auto_forwarding(
+    account_name: str, enabled: bool, email: str | None = None, disposition: str = "leaveInInbox"
+) -> dict:
+    """Enable/disable auto-forwarding. When enabling, `email` must already be a
+    verified forwarding address (see add_forwarding_address)."""
+    service = _service(account_name)
+    body: dict = {"enabled": enabled}
+    if enabled:
+        body["emailAddress"] = email
+        body["disposition"] = disposition
+    return service.users().settings().updateAutoForwarding(userId="me", body=body).execute()
+
+
+def list_send_as(account_name: str) -> list[dict]:
+    service = _service(account_name)
+    resp = service.users().settings().sendAs().list(userId="me").execute()
+    return resp.get("sendAs", [])
+
+
+def create_send_as(account_name: str, email: str, display_name: str = "") -> dict:
+    """Add a send-as alias. For an address the user doesn't already own, Google
+    requires a verification step before it can be used."""
+    service = _service(account_name)
+    body: dict = {"sendAsEmail": email}
+    if display_name:
+        body["displayName"] = display_name
+    sa = service.users().settings().sendAs().create(userId="me", body=body).execute()
+    return {
+        "send_as_email": sa.get("sendAsEmail", email),
+        "verification_status": sa.get("verificationStatus", ""),
+        "is_default": sa.get("isDefault", False),
+    }
+
+
+def delete_send_as(account_name: str, email: str) -> dict:
+    service = _service(account_name)
+    service.users().settings().sendAs().delete(userId="me", sendAsEmail=email).execute()
+    return {"deleted": email}
+
+
+def list_delegates(account_name: str) -> list[dict]:
+    service = _service(account_name)
+    resp = service.users().settings().delegates().list(userId="me").execute()
+    return resp.get("delegates", [])
+
+
+def add_delegate(account_name: str, delegate_email: str) -> dict:
+    """Grant another account delegate access (read + send). Typically
+    Workspace-only; on a consumer @gmail.com account Google returns an error,
+    which propagates rather than being masked."""
+    service = _service(account_name)
+    d = (
+        service.users()
+        .settings()
+        .delegates()
+        .create(userId="me", body={"delegateEmail": delegate_email})
+        .execute()
+    )
+    return {
+        "delegate_email": d.get("delegateEmail", delegate_email),
+        "verification_status": d.get("verificationStatus", ""),
+    }
+
+
+def delete_delegate(account_name: str, delegate_email: str) -> dict:
+    service = _service(account_name)
+    service.users().settings().delegates().delete(
+        userId="me", delegateEmail=delegate_email
+    ).execute()
+    return {"deleted": delegate_email}

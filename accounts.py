@@ -17,17 +17,19 @@ TOKENS_DIR = BASE_DIR / "tokens"
 CREDENTIALS_FILE = BASE_DIR / "credentials.json"
 
 # Search/read, draft/send, organise mail (labels, archive, read-state, star,
-# trash), and manage basic settings (filters, vacation, IMAP/POP). Trash is
-# recoverable — permanent deletion is deliberately NOT here: the
-# https://mail.google.com/ scope is excluded on purpose, so nothing this server
-# does is truly irreversible. gmail.settings.sharing (send-as, delegation) is
-# added when spec 011 lands — don't request a scope before a tool uses it. See
-# README "Scopes"; the settings tools carry extra confirm-before-acting guards.
+# trash), and manage settings — filters/vacation/IMAP/POP (settings.basic) plus
+# forwarding, send-as, and delegation (settings.sharing). Trash is recoverable —
+# permanent deletion is deliberately NOT here: the https://mail.google.com/
+# scope is excluded on purpose, so nothing this server does is truly
+# irreversible. The forwarding/send-as/delegation tools are the exfiltration
+# surface and carry the heaviest confirm-before-acting guards. See README
+# "Scopes".
 SCOPES = [
     "https://www.googleapis.com/auth/gmail.readonly",
     "https://www.googleapis.com/auth/gmail.compose",
     "https://www.googleapis.com/auth/gmail.modify",
     "https://www.googleapis.com/auth/gmail.settings.basic",
+    "https://www.googleapis.com/auth/gmail.settings.sharing",
 ]
 
 

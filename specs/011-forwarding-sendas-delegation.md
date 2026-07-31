@@ -1,7 +1,11 @@
 # Spec 011 — Forwarding, send-as aliases, and delegation
 
-- **Status:** **accepted** — "Forwarding & send-as" was explicitly chosen (see
-  [README](README.md)).
+- **Status:** **implemented** — forwarding addresses, auto-forwarding, send-as,
+  and delegation ship in `gmail_client.py` / `server.py`. All mutating tools are
+  gated by the shared `GMAIL_MCP_SEND_PHRASE` (`_phrase_blocks`), audited to
+  `settings.log` (`_audit_settings`), and carry explicit-user-instruction
+  docstrings; routing-establishing tools are `destructive_hint=True`. Tested in
+  `tests/test_forwarding_sendas.py`.
 - **Scope added:** `gmail.settings.basic` (forwarding addresses + auto-forwarding)
   and `gmail.settings.sharing` (send-as aliases, delegation).
 - **Destructive:** no deletion, but this is the **highest-risk feature in the

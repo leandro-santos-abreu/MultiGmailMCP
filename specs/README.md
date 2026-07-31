@@ -75,16 +75,16 @@ Done (each its own commit on `feature/guardrails`, all tested, 49 tests green):
 - **009** test harness · **007** send audit + confirm gate · **008** organize
   mail (`gmail.modify`) · **006** account identity + labels · **001** read
   thread · **003** cross-account search · **004** draft update/delete · **005**
-  reply/forward helper (with the shared `_build_message` extraction).
+  reply/forward helper · **010** settings (filters/vacation/IMAP/POP,
+  `gmail.settings.basic`) · **011** forwarding/send-as/delegation
+  (`gmail.settings.sharing`). All settings-mutating tools reuse
+  `GMAIL_MCP_SEND_PHRASE`; 011 changes are audited to `settings.log`.
 
-Remaining — deliberately left for review, each carries a decision or risk:
+Remaining:
 
-- **002 attachments** — writes files to local disk; needs the filename
-  sanitization / path-confinement care the spec describes before it's safe.
-- **010 settings** and **011 forwarding/send-as/delegation** — each adds a new
-  OAuth scope and 011 is the exfiltration surface. **Owner decision (recorded):**
-  010/011's persistent-config tools **reuse `GMAIL_MCP_SEND_PHRASE`** (not a
-  separate settings phrase).
+- **002 attachments** — the last unimplemented spec. Writes files to local disk;
+  needs the filename sanitization / path-confinement care the spec describes
+  before it's safe.
 
 ## Recommended sequencing
 
