@@ -5,8 +5,10 @@ credentials via accounts.py — nothing is cached across accounts.
 """
 
 import base64
+import os
 from email.mime.text import MIMEText
 from email.utils import formataddr, getaddresses, parseaddr
+from pathlib import Path
 
 from googleapiclient.discovery import build
 
@@ -178,6 +180,93 @@ def create_draft(
     draft_body = _build_message(to, subject, body, cc=cc, thread_id=thread_id)
     draft = service.users().drafts().create(userId="me", body=draft_body).execute()
     return {"draft_id": draft["id"], "message_id": draft["message"]["id"]}
+
+
+# --- Attachments (gmail.readonly) ----------------------------------------
+# Attachment filenames and bytes are attacker-controllable email content, so
+# the save path sanitises the filename to a bare basename and refuses to write
+# anywhere but inside the caller-approved destination directory.
+
+
+def list_attachments(account_name: str, message_id: str) -> list[dict]:
+    """List a message's attachments as {filename, mime_type, size_bytes,
+    attachment_id}. Pure read; nothing hits disk."""
+    service = _service(account_name)
+    msg = service.users().messages().get(userId="me", id=message_id, format="full").execute()
+
+    found: list[dict] = []
+    stack = [msg["payload"]]
+    while stack:
+        part = stack.pop()
+        body = part.get("body", {})
+        filename = part.get("filename") or ""
+        if filename and body.get("attachmentId"):
+            found.append(
+                {
+                    "filename": filename,
+                    "mime_type": part.get("mimeType", ""),
+                    "size_bytes": body.get("size", 0),
+                    "attachment_id": body["attachmentId"],
+                }
+            )
+        stack.extend(part.get("parts") or [])
+    return found
+
+
+def _safe_filename(name: str) -> str:
+    """Reduce an email-supplied filename to a safe bare basename — no directory
+    parts, no traversal, no control characters."""
+    name = (name or "").replace("\\", "/").split("/")[-1].strip()
+    name = "".join(c for c in name if c.isprintable())
+    if name in ("", ".", ".."):
+        name = "attachment"
+    return name
+
+
+def _attachment_filename(payload: dict, attachment_id: str) -> str:
+    stack = [payload]
+    while stack:
+        part = stack.pop()
+        if part.get("body", {}).get("attachmentId") == attachment_id:
+            return part.get("filename") or "attachment"
+        stack.extend(part.get("parts") or [])
+    return "attachment"
+
+
+def save_attachment(account_name: str, message_id: str, attachment_id: str, dest_dir: str) -> dict:
+    """Download one attachment and write it into dest_dir (which must already
+    exist). The filename comes from the message but is sanitised to a basename
+    and confined to dest_dir; an existing file is never overwritten (a numeric
+    suffix is added). Returns the absolute path written and byte count."""
+    service = _service(account_name)
+
+    msg = service.users().messages().get(userId="me", id=message_id, format="full").execute()
+    raw_name = _attachment_filename(msg["payload"], attachment_id)
+
+    att = (
+        service.users()
+        .messages()
+        .attachments()
+        .get(userId="me", messageId=message_id, id=attachment_id)
+        .execute()
+    )
+    data = base64.urlsafe_b64decode(att["data"])
+
+    dest = Path(dest_dir).resolve()
+    safe = _safe_filename(raw_name)
+    target = dest / safe
+    # defence in depth: a bare basename can't escape dest, but verify anyway.
+    if target.parent != dest:
+        raise ValueError("refused to write attachment outside the destination directory")
+
+    stem, suffix = os.path.splitext(safe)
+    counter = 1
+    while target.exists():
+        target = dest / f"{stem} ({counter}){suffix}"
+        counter += 1
+
+    target.write_bytes(data)
+    return {"path": str(target), "filename": target.name, "bytes": len(data)}
 
 
 def _original_headers(payload: dict) -> dict:

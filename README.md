@@ -113,6 +113,8 @@ for invoices from this month."*
 | `gmail_search_all(query, max_results_per_account)` | Runs one query across every configured account, grouped by account |
 | `gmail_read(account, message_id)` | Returns full headers + body of one message |
 | `gmail_read_thread(account, thread_id, max_messages)` | Returns every message in a thread, oldest first, in one call |
+| `gmail_list_attachments(account, message_id)` | Lists a message's attachments (filename, type, size, id) |
+| `gmail_save_attachment(account, message_id, attachment_id, dest_dir)` | Downloads one attachment to a local file (sanitized name, confined to dest) |
 | `gmail_draft(account, to, subject, body, cc, thread_id)` | Creates a draft — never sends |
 | `gmail_draft_reply(account, message_id, body, reply_all, quote_original)` | Drafts a reply with recipients/subject/threading filled in — never sends |
 | `gmail_draft_forward(account, message_id, to, body, quote_original)` | Drafts a forward to new recipients — never sends |

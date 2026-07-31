@@ -1,6 +1,10 @@
 # Spec 002 — List and save message attachments
 
-- **Status:** proposed
+- **Status:** **implemented** — `gmail_list_attachments` + `gmail_save_attachment`
+  ship in `gmail_client.py` / `server.py`. Filenames are sanitized to a bare
+  basename and confined to the destination dir; existing files are never
+  overwritten. Tested in `tests/test_attachments.py` (incl. traversal inputs).
+  Attaching files to *outgoing* drafts remains out of scope (see below).
 - **Tier:** 1 (fits existing `gmail.readonly` scope — no reauthorization)
 - **New scope required:** none
 - **Destructive:** no, but `gmail_save_attachment` **writes a local file** —

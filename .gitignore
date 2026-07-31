@@ -2,6 +2,7 @@ credentials.json
 tokens/*.json
 sent.log
 settings.log
+attachments/
 __pycache__/
 *.pyc
 .venv/

@@ -55,6 +55,10 @@ class _Collection:
     def patch(self, **kw):
         return self._call("patch", **kw)
 
+    def attachments(self):
+        # messages().attachments() -> its own collection ("attachments.get")
+        return _Collection(self._fake, "attachments")
+
     def send(self, **kw):
         return self._call("send", **kw)
 

@@ -180,6 +180,63 @@ def gmail_read_thread(account: str, thread_id: str, max_messages: int = 25) -> s
 
 
 @server.tool(
+    annotations=ToolAnnotations(read_only_hint=True, idempotent_hint=True, open_world_hint=True)
+)
+def gmail_list_attachments(account: str, message_id: str) -> str:
+    """List a message's attachments (filename, mime type, size, attachment_id).
+    Read-only — nothing is downloaded. Call this first, then gmail_save_attachment
+    with an attachment_id to actually save one.
+
+    Args:
+        account: name of a configured account
+        message_id: a message id from gmail_search/gmail_read
+    """
+    try:
+        atts = gmail_client.list_attachments(account, message_id)
+    except accounts.AccountError as e:
+        return str(e)
+    return json.dumps(atts, indent=2) if atts else "This message has no attachments."
+
+
+@server.tool(
+    annotations=ToolAnnotations(
+        title="Save Gmail Attachment", read_only_hint=False, destructive_hint=False,
+        idempotent_hint=False, open_world_hint=True,
+    )
+)
+def gmail_save_attachment(
+    account: str, message_id: str, attachment_id: str, dest_dir: str = "",
+) -> str:
+    """Download one attachment (by attachment_id from gmail_list_attachments) and
+    WRITE IT TO A FILE on this machine. Because this writes to disk and the file
+    comes from email — untrusted content — confirm the filename and destination
+    with the user before calling. The filename is taken from the message but
+    sanitised to a bare name and confined to the destination directory; an
+    existing file is never overwritten.
+
+    Args:
+        account: name of a configured account
+        message_id: the message the attachment is on
+        attachment_id: the attachment_id from gmail_list_attachments
+        dest_dir: directory to save into; must already exist. Default: an
+            `attachments/` folder next to the server.
+    """
+    if dest_dir:
+        dest = Path(dest_dir).expanduser().resolve()
+        if not dest.is_dir():
+            return f"Destination directory not found (create it first): {dest_dir}"
+    else:
+        dest = (Path(accounts.BASE_DIR) / "attachments").resolve()
+        dest.mkdir(exist_ok=True)
+
+    try:
+        result = gmail_client.save_attachment(account, message_id, attachment_id, str(dest))
+    except accounts.AccountError as e:
+        return str(e)
+    return f"Saved {result['filename']} ({result['bytes']} bytes) to {result['path']}."
+
+
+@server.tool(
     annotations=ToolAnnotations(
         title="Create Gmail Draft", read_only_hint=False, destructive_hint=False,
         idempotent_hint=False, open_world_hint=True,

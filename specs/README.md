@@ -70,21 +70,24 @@ Expanding scope changes claims the current docs make. Any implementation pass
 
 ## Implementation status
 
-Done (each its own commit on `feature/guardrails`, all tested, 49 tests green):
+**All specs implemented** — each its own commit on `feature/guardrails`, all
+tested (90 tests green):
 
 - **009** test harness · **007** send audit + confirm gate · **008** organize
   mail (`gmail.modify`) · **006** account identity + labels · **001** read
   thread · **003** cross-account search · **004** draft update/delete · **005**
   reply/forward helper · **010** settings (filters/vacation/IMAP/POP,
   `gmail.settings.basic`) · **011** forwarding/send-as/delegation
-  (`gmail.settings.sharing`). All settings-mutating tools reuse
-  `GMAIL_MCP_SEND_PHRASE`; 011 changes are audited to `settings.log`.
+  (`gmail.settings.sharing`) · **002** attachments (list + save-to-disk).
 
-Remaining:
+All settings-mutating tools reuse `GMAIL_MCP_SEND_PHRASE`; 011 changes are
+audited to `settings.log`. Final scope set: `readonly + compose + modify +
+settings.basic + settings.sharing` (permanent-delete `mail.google.com`
+deliberately excluded).
 
-- **002 attachments** — the last unimplemented spec. Writes files to local disk;
-  needs the filename sanitization / path-confinement care the spec describes
-  before it's safe.
+Possible follow-ups, not specced: attaching local files to *outgoing* drafts
+(needs `MIMEMultipart` + reads local files into mail — a larger risk surface,
+see 002's "Optional extension"); HTML-to-text body cleanup; search pagination.
 
 ## Recommended sequencing
 
