@@ -81,6 +81,9 @@ class _Users:
     def drafts(self):
         return _Collection(self._fake, "drafts")
 
+    def threads(self):
+        return _Collection(self._fake, "threads")
+
     def labels(self):
         return _Collection(self._fake, "labels")
 

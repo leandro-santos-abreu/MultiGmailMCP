@@ -111,6 +111,7 @@ for invoices from this month."*
 | `gmail_list_labels(account)` | Lists an account's labels as id/name/type |
 | `gmail_search(account, query, max_results)` | Searches using Gmail's own query syntax (`from:`, `is:unread`, `after:`, etc.) |
 | `gmail_read(account, message_id)` | Returns full headers + body of one message |
+| `gmail_read_thread(account, thread_id, max_messages)` | Returns every message in a thread, oldest first, in one call |
 | `gmail_draft(account, to, subject, body, cc, thread_id)` | Creates a draft — never sends |
 | `gmail_list_drafts(account, max_results)` | Lists saved drafts (subject + recipient only) |
 | `gmail_get_draft(account, draft_id)` | Fetches a draft's full contents, for a last check before sending |

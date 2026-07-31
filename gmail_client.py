@@ -88,6 +88,38 @@ def read_message(account_name: str, message_id: str) -> dict:
     }
 
 
+def read_thread(account_name: str, thread_id: str, max_messages: int = 25) -> dict:
+    """Return every message in a thread, oldest first (Gmail returns them in
+    chronological order), each shaped like read_message. One threads.get call
+    regardless of thread length. max_messages caps how many are expanded so a
+    very long thread can't blow up the response."""
+    service = _service(account_name)
+    thread = (
+        service.users().threads().get(userId="me", id=thread_id, format="full").execute()
+    )
+    msgs = thread.get("messages", [])
+    expanded = []
+    for msg in msgs[:max_messages]:
+        headers = {h["name"]: h["value"] for h in msg["payload"]["headers"]}
+        expanded.append(
+            {
+                "id": msg["id"],
+                "from": headers.get("From", ""),
+                "to": headers.get("To", ""),
+                "subject": headers.get("Subject", "(no subject)"),
+                "date": headers.get("Date", ""),
+                "labels": msg.get("labelIds", []),
+                "body": _extract_body(msg["payload"]),
+            }
+        )
+    return {
+        "thread_id": thread_id,
+        "message_count": len(msgs),
+        "returned": len(expanded),
+        "messages": expanded,
+    }
+
+
 def create_draft(
     account_name: str,
     to: str,

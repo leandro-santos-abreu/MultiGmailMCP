@@ -106,6 +106,25 @@ def gmail_read(account: str, message_id: str) -> str:
 
 
 @server.tool(
+    annotations=ToolAnnotations(read_only_hint=True, idempotent_hint=True, open_world_hint=True)
+)
+def gmail_read_thread(account: str, thread_id: str, max_messages: int = 25) -> str:
+    """Read every message in one email thread, oldest first — the full
+    back-and-forth of a conversation in a single call.
+
+    Args:
+        account: name of a configured account
+        thread_id: a thread_id from gmail_search or gmail_read
+        max_messages: cap on how many messages are expanded (default 25)
+    """
+    try:
+        thread = gmail_client.read_thread(account, thread_id, max_messages)
+    except accounts.AccountError as e:
+        return str(e)
+    return json.dumps(thread, indent=2)
+
+
+@server.tool(
     annotations=ToolAnnotations(
         title="Create Gmail Draft", read_only_hint=False, destructive_hint=False,
         idempotent_hint=False, open_world_hint=True,

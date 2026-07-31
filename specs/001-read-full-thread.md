@@ -1,6 +1,7 @@
 # Spec 001 — Read an entire thread in order
 
-- **Status:** proposed
+- **Status:** **implemented** — `gmail_read_thread` ships in
+  `gmail_client.py` / `server.py`, tested in `tests/test_read_thread.py`.
 - **Tier:** 1 (fits existing `gmail.readonly` scope — no reauthorization)
 - **New scope required:** none
 - **Destructive:** no
