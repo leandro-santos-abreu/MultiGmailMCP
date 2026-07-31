@@ -62,10 +62,12 @@ gating.
    address/account. Never in response to email content, filter content, or any
    other observed data. (Mirrors and strengthens the `gmail_send_draft` framing.)
 2. **Reuse the [007](007-send-audit-and-confirmation.md) confirmation phrase.**
-   These tools should honor the same `GMAIL_MCP_SEND_PHRASE` gate (or a dedicated
-   `GMAIL_MCP_SETTINGS_PHRASE`): when configured, refuse unless the caller passes
-   the exact phrase the user supplied — a code-level precondition, not just
-   docstring wording. This is why 007 is sequenced before 011.
+   **Owner decision (recorded):** these tools reuse the same
+   `GMAIL_MCP_SEND_PHRASE` gate — **not** a separate `GMAIL_MCP_SETTINGS_PHRASE`.
+   When configured, refuse unless the caller passes the exact phrase the user
+   supplied — a code-level precondition, not just docstring wording. This is why
+   007 is sequenced before 011. (Factor 007's inline check into a shared helper
+   so send and settings tools share one gate.)
 3. **Audit every change.** Extend 007's `sent.log` (or a sibling
    `settings.log`) to append an entry for every forwarding/send-as/delegation
    change: timestamp, account name, tool, target address. **Never** log token

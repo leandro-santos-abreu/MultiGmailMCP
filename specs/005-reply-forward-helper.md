@@ -1,6 +1,10 @@
 # Spec 005 — Correct reply / forward draft scaffolding
 
-- **Status:** proposed
+- **Status:** **implemented** — `gmail_draft_reply` + `gmail_draft_forward` ship
+  in `gmail_client.py` / `server.py`, with the shared `_build_message` helper now
+  extracted (create/update/reply/forward all use it). Tested in
+  `tests/test_reply_forward.py`, including a guard that the refactor left
+  `create_draft` output unchanged.
 - **Tier:** 1 (fits existing `gmail.compose` scope — no reauthorization)
 - **New scope required:** none
 - **Destructive:** no (creates a draft; sending still requires `gmail_send_draft`)

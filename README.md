@@ -114,6 +114,8 @@ for invoices from this month."*
 | `gmail_read(account, message_id)` | Returns full headers + body of one message |
 | `gmail_read_thread(account, thread_id, max_messages)` | Returns every message in a thread, oldest first, in one call |
 | `gmail_draft(account, to, subject, body, cc, thread_id)` | Creates a draft — never sends |
+| `gmail_draft_reply(account, message_id, body, reply_all, quote_original)` | Drafts a reply with recipients/subject/threading filled in — never sends |
+| `gmail_draft_forward(account, message_id, to, body, quote_original)` | Drafts a forward to new recipients — never sends |
 | `gmail_update_draft(account, draft_id, to, subject, body, cc, thread_id)` | Replaces an existing draft's contents — never sends |
 | `gmail_delete_draft(account, draft_id)` | Deletes an unsent draft (drafts only — can't touch real messages) |
 | `gmail_list_drafts(account, max_results)` | Lists saved drafts (subject + recipient only) |

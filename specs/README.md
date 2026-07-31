@@ -74,19 +74,17 @@ Done (each its own commit on `feature/guardrails`, all tested, 49 tests green):
 
 - **009** test harness · **007** send audit + confirm gate · **008** organize
   mail (`gmail.modify`) · **006** account identity + labels · **001** read
-  thread · **003** cross-account search · **004** draft update/delete.
+  thread · **003** cross-account search · **004** draft update/delete · **005**
+  reply/forward helper (with the shared `_build_message` extraction).
 
 Remaining — deliberately left for review, each carries a decision or risk:
 
 - **002 attachments** — writes files to local disk; needs the filename
   sanitization / path-confinement care the spec describes before it's safe.
-- **005 reply/forward helper** — most complex; needs the `_build_message`
-  extraction (create/update/reply/forward share it) plus recipient-derivation
-  and threading-header logic that benefits from review.
 - **010 settings** and **011 forwarding/send-as/delegation** — each adds a new
-  OAuth scope and 011 is the exfiltration surface. **Open question for the
-  owner:** should 010/011's persistent-config tools reuse `GMAIL_MCP_SEND_PHRASE`
-  or get their own `GMAIL_MCP_SETTINGS_PHRASE`? (Raised in 011.)
+  OAuth scope and 011 is the exfiltration surface. **Owner decision (recorded):**
+  010/011's persistent-config tools **reuse `GMAIL_MCP_SEND_PHRASE`** (not a
+  separate settings phrase).
 
 ## Recommended sequencing
 

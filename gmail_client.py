@@ -6,6 +6,7 @@ credentials via accounts.py — nothing is cached across accounts.
 
 import base64
 from email.mime.text import MIMEText
+from email.utils import formataddr, getaddresses, parseaddr
 
 from googleapiclient.discovery import build
 
@@ -135,6 +136,36 @@ def read_thread(account_name: str, thread_id: str, max_messages: int = 25) -> di
     }
 
 
+def _build_message(
+    to: str,
+    subject: str,
+    body: str,
+    cc: str | None = None,
+    thread_id: str | None = None,
+    in_reply_to: str | None = None,
+    references: str | None = None,
+) -> dict:
+    """Build the drafts.create/update request body — a {"message": {...}} dict
+    with the base64url-encoded MIME message, and threadId when given. Shared by
+    create_draft, update_draft, and the reply/forward builders so the message
+    construction lives in exactly one place."""
+    message = MIMEText(body)
+    message["to"] = to
+    message["subject"] = subject
+    if cc:
+        message["cc"] = cc
+    if in_reply_to:
+        message["In-Reply-To"] = in_reply_to
+    if references:
+        message["References"] = references
+
+    raw = base64.urlsafe_b64encode(message.as_bytes()).decode()
+    draft_body: dict = {"message": {"raw": raw}}
+    if thread_id:
+        draft_body["message"]["threadId"] = thread_id
+    return draft_body
+
+
 def create_draft(
     account_name: str,
     to: str,
@@ -144,20 +175,118 @@ def create_draft(
     thread_id: str | None = None,
 ) -> dict:
     service = _service(account_name)
-
-    message = MIMEText(body)
-    message["to"] = to
-    message["subject"] = subject
-    if cc:
-        message["cc"] = cc
-
-    raw = base64.urlsafe_b64encode(message.as_bytes()).decode()
-    draft_body: dict = {"message": {"raw": raw}}
-    if thread_id:
-        draft_body["message"]["threadId"] = thread_id
-
+    draft_body = _build_message(to, subject, body, cc=cc, thread_id=thread_id)
     draft = service.users().drafts().create(userId="me", body=draft_body).execute()
     return {"draft_id": draft["id"], "message_id": draft["message"]["id"]}
+
+
+def _original_headers(payload: dict) -> dict:
+    """Case-insensitive header lookup for a message payload."""
+    return {h["name"].lower(): h["value"] for h in payload.get("headers", [])}
+
+
+def _prefix_subject(subject: str, prefix: str) -> str:
+    """Add 'Re: ' / 'Fwd: ' unless the subject already carries that prefix."""
+    if subject.lower().startswith(prefix.lower()):
+        return subject
+    return f"{prefix}{subject}"
+
+
+def _quote_reply(headers: dict, body_text: str) -> str:
+    attribution = f"On {headers.get('date', '')}, {headers.get('from', '')} wrote:"
+    quoted = "\n".join("> " + line for line in body_text.splitlines())
+    return f"{attribution}\n{quoted}"
+
+
+def create_reply_draft(
+    account_name: str,
+    message_id: str,
+    body: str,
+    reply_all: bool = False,
+    quote_original: bool = True,
+) -> dict:
+    """Draft a reply to an existing message. Recipients, Re: subject, threadId,
+    and In-Reply-To/References come only from the original's structured headers
+    — never from anything in its body. Never sends."""
+    service = _service(account_name)
+    orig = service.users().messages().get(userId="me", id=message_id, format="full").execute()
+    h = _original_headers(orig["payload"])
+
+    sender = h.get("reply-to") or h.get("from", "")
+    to = sender
+    subject = _prefix_subject(h.get("subject", ""), "Re: ")
+
+    cc = None
+    if reply_all:
+        own_email = (
+            service.users().getProfile(userId="me").execute().get("emailAddress", "").lower()
+        )
+        seen = {own_email, parseaddr(sender)[1].lower(), ""}
+        cc_addrs = []
+        for name, email in getaddresses([h.get("to", ""), h.get("cc", "")]):
+            e = email.lower()
+            if e and e not in seen:
+                seen.add(e)
+                cc_addrs.append(formataddr((name, email)))
+        cc = ", ".join(cc_addrs) or None
+
+    message_id_hdr = h.get("message-id")
+    references = (f"{h.get('references', '')} {message_id_hdr or ''}").strip() or None
+
+    reply_body = body
+    if quote_original:
+        reply_body = f"{body}\n\n{_quote_reply(h, _extract_body(orig['payload']))}"
+
+    draft_body = _build_message(
+        to, subject, reply_body, cc=cc,
+        thread_id=orig.get("threadId"),
+        in_reply_to=message_id_hdr, references=references,
+    )
+    draft = service.users().drafts().create(userId="me", body=draft_body).execute()
+    return {
+        "draft_id": draft["id"],
+        "message_id": draft["message"]["id"],
+        "to": to,
+        "cc": cc or "",
+        "subject": subject,
+    }
+
+
+def create_forward_draft(
+    account_name: str,
+    message_id: str,
+    to: str,
+    body: str,
+    quote_original: bool = True,
+) -> dict:
+    """Draft a forward of an existing message to new recipients. A forward
+    starts a new thread, so no threadId or threading headers are set. Never
+    sends."""
+    service = _service(account_name)
+    orig = service.users().messages().get(userId="me", id=message_id, format="full").execute()
+    h = _original_headers(orig["payload"])
+
+    subject = _prefix_subject(h.get("subject", ""), "Fwd: ")
+
+    fwd_body = body
+    if quote_original:
+        header_block = (
+            "---------- Forwarded message ----------\n"
+            f"From: {h.get('from', '')}\n"
+            f"Date: {h.get('date', '')}\n"
+            f"Subject: {h.get('subject', '')}\n"
+            f"To: {h.get('to', '')}\n\n"
+        )
+        fwd_body = f"{body}\n\n{header_block}{_extract_body(orig['payload'])}"
+
+    draft_body = _build_message(to, subject, fwd_body)
+    draft = service.users().drafts().create(userId="me", body=draft_body).execute()
+    return {
+        "draft_id": draft["id"],
+        "message_id": draft["message"]["id"],
+        "to": to,
+        "subject": subject,
+    }
 
 
 def get_draft(account_name: str, draft_id: str) -> dict:
@@ -183,22 +312,10 @@ def update_draft(
     cc: str | None = None,
     thread_id: str | None = None,
 ) -> dict:
-    """Replace an existing draft's contents in place (same draft_id). Builds the
-    MIME message exactly as create_draft does — spec 005 will factor the shared
-    construction into a _build_message helper once reply/forward needs it too."""
+    """Replace an existing draft's contents in place (same draft_id), using the
+    shared _build_message helper (also used by create_draft and reply/forward)."""
     service = _service(account_name)
-
-    message = MIMEText(body)
-    message["to"] = to
-    message["subject"] = subject
-    if cc:
-        message["cc"] = cc
-
-    raw = base64.urlsafe_b64encode(message.as_bytes()).decode()
-    draft_body: dict = {"message": {"raw": raw}}
-    if thread_id:
-        draft_body["message"]["threadId"] = thread_id
-
+    draft_body = _build_message(to, subject, body, cc=cc, thread_id=thread_id)
     draft = service.users().drafts().update(userId="me", id=draft_id, body=draft_body).execute()
     return {"draft_id": draft["id"], "message_id": draft["message"]["id"]}
 
