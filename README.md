@@ -6,9 +6,11 @@ inbox for anything from Sarah" / "draft a reply from my personal account"
 — all running on your own machine. Nothing is hosted; Claude Desktop
 launches this script itself.
 
-**Scope, on purpose:** this can search, read, draft, and send — but
-sending is a deliberate two-step confirm-then-send, never automatic. It
-still cannot delete anything or touch labels — see "Scopes" below for why.
+**Scope, on purpose:** this can search, read, draft, send, and organize
+mail (labels, archive, read/unread, star, trash) — but sending stays a
+deliberate two-step confirm-then-send, and it deliberately **cannot
+permanently delete** anything: trash is recoverable, and Gmail's
+hard-delete scope is left out on purpose. See "Scopes" below.
 
 ---
 
@@ -111,6 +113,12 @@ for invoices from this month."*
 | `gmail_list_drafts(account, max_results)` | Lists saved drafts (subject + recipient only) |
 | `gmail_get_draft(account, draft_id)` | Fetches a draft's full contents, for a last check before sending |
 | `gmail_send_draft(account, draft_id)` | Sends an existing draft. Irreversible — see "Sending mail" below |
+| `gmail_modify_labels(account, message_id, add, remove)` | Adds/removes labels on a message (by label id) |
+| `gmail_mark_read` / `gmail_mark_unread(account, message_id)` | Toggles the read state |
+| `gmail_archive` / `gmail_unarchive(account, message_id)` | Removes from / returns to the inbox |
+| `gmail_star` / `gmail_unstar(account, message_id)` | Toggles the star |
+| `gmail_trash` / `gmail_untrash(account, message_id)` | Moves to / restores from Trash (recoverable — **not** a permanent delete) |
+| `gmail_create_label` / `gmail_rename_label` / `gmail_delete_label(account, ...)` | Manages your user labels |
 
 ---
 
@@ -147,22 +155,31 @@ entirely.
 
 ## Scopes
 
-This server requests exactly two OAuth scopes:
+This server requests three OAuth scopes:
 
 - `gmail.readonly` — search and read
 - `gmail.compose` — create/read/update/delete drafts, **and send them**
   (this is Google's scope, not a design choice here — `gmail.compose`
   bundles sending in with draft management, there's no narrower scope
-  that offers drafts without send). This is also why adding
-  `gmail_send_draft` required no new authorization — if you set this up
-  before sending existed, your existing tokens already cover it.
+  that offers drafts without send).
+- `gmail.modify` — organize mail: add/remove labels, mark read/unread,
+  archive, star, and move messages to **Trash**. This covers all
+  read/write on mail *except* permanent deletion.
 
-There's no `gmail.modify`, so archiving, marking read/unread, and
-deleting are simply not possible through this server — not filtered out
-in code, structurally absent from what the token can do. Given the note
-above, treat `tokens/*.json` as being as sensitive as a credential that
-*can* send email on your behalf, because technically it can, regardless
-of which tools this particular server exposes. See Security below.
+**What it deliberately does *not* request:**
+
+- `https://mail.google.com/` (permanent delete / empty Trash) — left out
+  on purpose. `gmail_trash` moves messages to Trash, where they're
+  recoverable for ~30 days, so nothing this server does is truly
+  irreversible. There is no hard-delete tool because the token can't
+  hard-delete.
+- `gmail.settings.*` (filters, forwarding, send-as, delegation) — not
+  yet. Those arrive with later features; today the token cannot change
+  any account settings.
+
+Because the token can now send mail **and** reorganize or trash it, treat
+`tokens/*.json` as at least as sensitive as the password to that inbox.
+See Security below.
 
 ## Why do I have to reauthorize so often?
 
@@ -178,7 +195,7 @@ for a tool only you use, so it's not worth doing here.
 
 ## Security
 
-- Each account's refresh token lives in plain text in `tokens/<name>.json`. Anyone with that file can access that Gmail account until it's revoked. Don't sync this folder anywhere shared; `.gitignore` already excludes `tokens/` and `credentials.json`.
+- Each account's refresh token lives in plain text in `tokens/<name>.json`. Anyone with that file can read, send, and now also reorganize or trash that account's mail until it's revoked (trashing is recoverable; permanent deletion is not possible — see Scopes). Don't sync this folder anywhere shared; `.gitignore` already excludes `tokens/` and `credentials.json`.
 - Everything runs locally — Claude Desktop spawns this script as a subprocess on your machine. Your email data is included in whatever conversation you ask about it in (same as any Claude tool result), but nothing is hosted or exposed to the internet by this server itself.
 - To revoke access entirely, go to [myaccount.google.com/permissions](https://myaccount.google.com/permissions) on the relevant account and remove the app, then delete its `tokens/<name>.json` file here.
 
@@ -195,7 +212,8 @@ for a tool only you use, so it's not worth doing here.
 
 ## Extending this later
 
-- **Archive / mark read-unread:** add `gmail.modify` to `SCOPES` in `accounts.py`, add a `gmail_modify_labels` tool in `server.py`, then rerun `add_account.py` for each account (scope changes require reauthorizing — unlike send, this one's genuinely new territory).
+- **Organizing mail (built in):** labels, archive, read/unread, star, and Trash now ship via `gmail.modify` (see the tools table and Scopes). Permanent deletion is intentionally excluded. If you set this server up before these existed, rerun `add_account.py` once per account to pick up the new scope.
+- **Account settings (filters, forwarding, send-as, delegation):** not yet — planned via `gmail.settings.basic` / `gmail.settings.sharing`. When added they'll need another `add_account.py` pass per account, and carry heavier confirm-before-acting guards (forwarding/delegation are data-exfiltration vectors).
 - **More accounts:** just run `add_account.py <new-name>` again — no config changes needed.
 - **Stricter send confirmation (built in):** two harder gates than docstring wording now ship in `gmail_send_draft`:
   - **Audit log** — every successful send appends one line (timestamp, account, draft/message id, recipient, subject — never any token data) to `sent.log` next to `server.py` (gitignored). It's best-effort: a logging error never blocks or undoes a send.

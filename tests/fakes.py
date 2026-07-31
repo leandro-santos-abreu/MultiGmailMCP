@@ -52,6 +52,9 @@ class _Collection:
     def update(self, **kw):
         return self._call("update", **kw)
 
+    def patch(self, **kw):
+        return self._call("patch", **kw)
+
     def send(self, **kw):
         return self._call("send", **kw)
 

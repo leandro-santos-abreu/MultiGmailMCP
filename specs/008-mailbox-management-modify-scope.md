@@ -1,7 +1,8 @@
 # Spec 008 — Organize mail (archive / read-state / label / trash + label CRUD)
 
-- **Status:** **accepted** — part of the committed scope expansion (see
-  [README](README.md)). "Organize mail" was explicitly chosen.
+- **Status:** **implemented** — `gmail.modify` + the organize-mail tools ship in
+  `accounts.py` / `gmail_client.py` / `server.py`, with tests in
+  `tests/test_organize_mail.py`. Settings scopes remain deferred to 010/011.
 - **Scope added:** `gmail.modify`
 - **Destructive:** `gmail_trash` moves to Trash (recoverable ~30 days). **No
   permanent delete** — the `https://mail.google.com/` scope was deliberately

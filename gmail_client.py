@@ -176,3 +176,76 @@ def list_drafts(account_name: str, max_results: int = 10) -> list[dict]:
             }
         )
     return drafts
+
+
+# --- Mailbox organisation (gmail.modify) ---------------------------------
+# Message-state changes all reduce to one messages.modify (adding/removing
+# system or user label ids); trash/untrash and label CRUD are their own calls.
+# None of this can permanently delete anything — that needs the deliberately
+# excluded https://mail.google.com/ scope. See specs/008.
+
+
+def modify_labels(
+    account_name: str,
+    message_id: str,
+    add: list[str] | None = None,
+    remove: list[str] | None = None,
+) -> dict:
+    """Add and/or remove label ids on one message. System labels (UNREAD,
+    INBOX, STARRED, ...) and user label ids both work."""
+    service = _service(account_name)
+    body = {"addLabelIds": add or [], "removeLabelIds": remove or []}
+    msg = service.users().messages().modify(userId="me", id=message_id, body=body).execute()
+    return {"id": msg["id"], "labels": msg.get("labelIds", [])}
+
+
+def trash_message(account_name: str, message_id: str) -> dict:
+    """Move a message to Trash. Recoverable (~30 days) via untrash_message or
+    Gmail's UI — this is NOT a permanent delete."""
+    service = _service(account_name)
+    msg = service.users().messages().trash(userId="me", id=message_id).execute()
+    return {"id": msg["id"], "labels": msg.get("labelIds", [])}
+
+
+def untrash_message(account_name: str, message_id: str) -> dict:
+    """Restore a message from Trash."""
+    service = _service(account_name)
+    msg = service.users().messages().untrash(userId="me", id=message_id).execute()
+    return {"id": msg["id"], "labels": msg.get("labelIds", [])}
+
+
+def create_label(account_name: str, name: str) -> dict:
+    service = _service(account_name)
+    label = (
+        service.users()
+        .labels()
+        .create(
+            userId="me",
+            body={
+                "name": name,
+                "labelListVisibility": "labelShow",
+                "messageListVisibility": "show",
+            },
+        )
+        .execute()
+    )
+    return {"id": label["id"], "name": label["name"]}
+
+
+def rename_label(account_name: str, label_id: str, name: str) -> dict:
+    service = _service(account_name)
+    label = (
+        service.users()
+        .labels()
+        .patch(userId="me", id=label_id, body={"name": name})
+        .execute()
+    )
+    return {"id": label["id"], "name": label["name"]}
+
+
+def delete_label(account_name: str, label_id: str) -> dict:
+    """Delete a user label. The label (and its membership) is gone for good;
+    the messages that carried it are untouched."""
+    service = _service(account_name)
+    service.users().labels().delete(userId="me", id=label_id).execute()
+    return {"deleted": label_id}

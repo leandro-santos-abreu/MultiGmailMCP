@@ -16,13 +16,16 @@ BASE_DIR = Path(__file__).resolve().parent
 TOKENS_DIR = BASE_DIR / "tokens"
 CREDENTIALS_FILE = BASE_DIR / "credentials.json"
 
-# Kept intentionally minimal: read + search + create/list drafts.
-# No gmail.modify and no gmail.send, so this server can never send mail or
-# touch labels/trash, even by mistake — see README "Scopes" section if you
-# want to extend this later.
+# Search/read, draft/send, and organise mail (labels, archive, read-state,
+# star, trash). Trash is recoverable — permanent deletion is deliberately NOT
+# here: the https://mail.google.com/ scope is excluded on purpose, so nothing
+# this server does is truly irreversible. Settings scopes (gmail.settings.basic
+# / .sharing) are added when specs 010/011 land; until then the token cannot
+# touch filters, forwarding, or delegation. See README "Scopes".
 SCOPES = [
     "https://www.googleapis.com/auth/gmail.readonly",
     "https://www.googleapis.com/auth/gmail.compose",
+    "https://www.googleapis.com/auth/gmail.modify",
 ]
 
 
