@@ -197,4 +197,6 @@ for a tool only you use, so it's not worth doing here.
 
 - **Archive / mark read-unread:** add `gmail.modify` to `SCOPES` in `accounts.py`, add a `gmail_modify_labels` tool in `server.py`, then rerun `add_account.py` for each account (scope changes require reauthorizing — unlike send, this one's genuinely new territory).
 - **More accounts:** just run `add_account.py <new-name>` again — no config changes needed.
-- **Stricter send confirmation:** if you want a harder gate than docstring wording — e.g. requiring a literal confirmation phrase, or logging every send to a local file you can audit — that logic goes in `gmail_send_draft` in `server.py`, before it calls `gmail_client.send_draft(...)`.
+- **Stricter send confirmation (built in):** two harder gates than docstring wording now ship in `gmail_send_draft`:
+  - **Audit log** — every successful send appends one line (timestamp, account, draft/message id, recipient, subject — never any token data) to `sent.log` next to `server.py` (gitignored). It's best-effort: a logging error never blocks or undoes a send.
+  - **Confirmation phrase** — set the env var `GMAIL_MCP_SEND_PHRASE` (e.g. in your Claude Desktop server config's `env`) to any phrase, and `gmail_send_draft` will refuse to send unless it's called with that exact phrase in its `confirm` argument. This makes "confirm before sending" a code-level precondition, not just an instruction the model is asked to follow. Unset (the default), sending behaves exactly as before.

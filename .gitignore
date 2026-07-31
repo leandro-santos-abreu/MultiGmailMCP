@@ -1,5 +1,6 @@
 credentials.json
 tokens/*.json
+sent.log
 __pycache__/
 *.pyc
 .venv/

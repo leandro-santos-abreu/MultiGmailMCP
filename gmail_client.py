@@ -128,10 +128,31 @@ def get_draft(account_name: str, draft_id: str) -> dict:
 
 
 def send_draft(account_name: str, draft_id: str) -> dict:
-    """Send an existing draft as-is. Irreversible once called."""
+    """Send an existing draft as-is. Irreversible once called.
+
+    Returns the sent message id plus the draft's To/Subject, captured before
+    sending so server.py can write an audit line. The metadata read is
+    best-effort: if it fails we still send and just record blank To/Subject —
+    an audit gap must never be a reason to block or fail a send.
+    """
     service = _service(account_name)
+
+    to = subject = ""
+    try:
+        meta = (
+            service.users()
+            .drafts()
+            .get(userId="me", id=draft_id, format="metadata")
+            .execute()
+        )
+        headers = {h["name"]: h["value"] for h in meta["message"]["payload"]["headers"]}
+        to = headers.get("To", "")
+        subject = headers.get("Subject", "")
+    except Exception:  # noqa: BLE001 — audit metadata only; never block the send
+        pass
+
     result = service.users().drafts().send(userId="me", body={"id": draft_id}).execute()
-    return {"message_id": result["id"]}
+    return {"message_id": result["id"], "to": to, "subject": subject}
 
 
 def list_drafts(account_name: str, max_results: int = 10) -> list[dict]:
