@@ -176,6 +176,61 @@ def gmail_draft(account: str, to: str, subject: str, body: str, cc: str = "", th
 
 
 @server.tool(
+    annotations=ToolAnnotations(
+        title="Update Gmail Draft", read_only_hint=False, destructive_hint=False,
+        idempotent_hint=True, open_world_hint=True,
+    )
+)
+def gmail_update_draft(
+    account: str, draft_id: str, to: str, subject: str, body: str,
+    cc: str = "", thread_id: str = "",
+) -> str:
+    """Replace the contents of an existing draft in place (keeps the same
+    draft_id). Like gmail_draft this NEVER sends — only gmail_send_draft can
+    send, and only after the user has reviewed and asked for it.
+
+    Args:
+        account: name of a configured account
+        draft_id: the draft to update, from gmail_draft or gmail_list_drafts
+        to: recipient address(es), comma-separated
+        subject: the email subject
+        body: plain-text email body
+        cc: optional cc address(es), comma-separated
+        thread_id: optional — set to reply within an existing thread
+    """
+    try:
+        result = gmail_client.update_draft(
+            account, draft_id, to, subject, body,
+            cc=cc or None, thread_id=thread_id or None,
+        )
+    except accounts.AccountError as e:
+        return str(e)
+    return f"Draft updated in '{account}' (draft_id={result['draft_id']}). Not sent."
+
+
+@server.tool(
+    annotations=ToolAnnotations(
+        title="Delete Gmail Draft", read_only_hint=False, destructive_hint=True,
+        idempotent_hint=False, open_world_hint=True,
+    )
+)
+def gmail_delete_draft(account: str, draft_id: str) -> str:
+    """Permanently delete an UNSENT draft. This only removes a draft — it cannot
+    touch a sent or received message. Irreversible for that draft, so only do it
+    when the user has asked to discard this specific draft.
+
+    Args:
+        account: name of a configured account
+        draft_id: the draft to delete, from gmail_draft or gmail_list_drafts
+    """
+    try:
+        result = gmail_client.delete_draft(account, draft_id)
+    except accounts.AccountError as e:
+        return str(e)
+    return f"Draft {result['deleted']} deleted from '{account}'."
+
+
+@server.tool(
     annotations=ToolAnnotations(read_only_hint=True, idempotent_hint=True, open_world_hint=True)
 )
 def gmail_list_drafts(account: str, max_results: int = 10) -> str:

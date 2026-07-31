@@ -1,6 +1,8 @@
 # Spec 004 — Update and delete existing drafts
 
-- **Status:** proposed
+- **Status:** **implemented** — `gmail_update_draft` + `gmail_delete_draft` ship
+  in `gmail_client.py` / `server.py`, tested in `tests/test_draft_lifecycle.py`.
+  The shared `_build_message` extraction is deferred to 005 (noted in code).
 - **Tier:** 1 (fits existing `gmail.compose` scope — no reauthorization)
 - **New scope required:** none
 - **Destructive:** `gmail_delete_draft` yes, but **draft-scoped only** — it can

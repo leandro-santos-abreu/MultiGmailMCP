@@ -174,6 +174,43 @@ def get_draft(account_name: str, draft_id: str) -> dict:
     }
 
 
+def update_draft(
+    account_name: str,
+    draft_id: str,
+    to: str,
+    subject: str,
+    body: str,
+    cc: str | None = None,
+    thread_id: str | None = None,
+) -> dict:
+    """Replace an existing draft's contents in place (same draft_id). Builds the
+    MIME message exactly as create_draft does — spec 005 will factor the shared
+    construction into a _build_message helper once reply/forward needs it too."""
+    service = _service(account_name)
+
+    message = MIMEText(body)
+    message["to"] = to
+    message["subject"] = subject
+    if cc:
+        message["cc"] = cc
+
+    raw = base64.urlsafe_b64encode(message.as_bytes()).decode()
+    draft_body: dict = {"message": {"raw": raw}}
+    if thread_id:
+        draft_body["message"]["threadId"] = thread_id
+
+    draft = service.users().drafts().update(userId="me", id=draft_id, body=draft_body).execute()
+    return {"draft_id": draft["id"], "message_id": draft["message"]["id"]}
+
+
+def delete_draft(account_name: str, draft_id: str) -> dict:
+    """Permanently delete an unsent draft. Only ever removes a draft — it cannot
+    touch a sent or received message."""
+    service = _service(account_name)
+    service.users().drafts().delete(userId="me", id=draft_id).execute()
+    return {"deleted": draft_id}
+
+
 def send_draft(account_name: str, draft_id: str) -> dict:
     """Send an existing draft as-is. Irreversible once called.
 
