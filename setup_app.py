@@ -113,26 +113,54 @@ def valid_account_name(name: str) -> bool:
     return bool(name) and name not in (".", "..") and not any(c in name for c in "/\\") and "\0" not in name
 
 
+def _friendly_error(exc) -> tuple[str, str]:
+    """Return (detail, help_url). Turns the most common first-run failure — the
+    Gmail API not being enabled on the Cloud project (a 403 `accessNotConfigured`,
+    which OAuth success hides until the first API call) — into an actionable
+    message plus the project-specific enable link. Otherwise returns the raw text
+    and no link. Never includes token/credential material."""
+    text = str(exc)
+    if "accessNotConfigured" in text or "has not been used in project" in text:
+        import re
+
+        m = re.search(r"project[=/ ](\d+)", text)
+        proj = m.group(1) if m else ""
+        url = (
+            f"https://console.developers.google.com/apis/api/gmail.googleapis.com/overview?project={proj}"
+            if proj
+            else "https://console.cloud.google.com/apis/library/gmail.googleapis.com"
+        )
+        return (
+            "The Gmail API isn't enabled for this Google Cloud project yet — "
+            "enable it, wait ~1-2 min, then click Test.",
+            url,
+        )
+    return (text, "")
+
+
 def account_statuses() -> list[dict]:
-    """Per-account {name, status, email, detail}. Never returns token contents.
-    Catches per-account errors so one bad account can't blank the whole table."""
+    """Per-account {name, status, email, detail, help_url}. Never returns token
+    contents. Catches per-account errors so one bad account can't blank the whole
+    table, and turns the common 'Gmail API disabled' 403 into a fixable hint."""
     rows: list[dict] = []
     for name in accounts.list_account_names():
         try:
             accounts.load_credentials(name)  # refreshes; raises AccountError if expired/revoked
         except accounts.AccountError as e:
-            rows.append({"name": name, "status": "expired", "email": "", "detail": str(e)})
+            rows.append({"name": name, "status": "expired", "email": "", "detail": str(e), "help_url": ""})
             continue
         except Exception as e:  # noqa: BLE001 — status view stays useful even if one account errors
-            rows.append({"name": name, "status": "error", "email": "", "detail": str(e)})
+            detail, url = _friendly_error(e)
+            rows.append({"name": name, "status": "error", "email": "", "detail": detail, "help_url": url})
             continue
         try:
             info = gmail_client.account_info(name)
-            rows.append({"name": name, "status": "valid", "email": info.get("email_address", ""), "detail": ""})
+            rows.append({"name": name, "status": "valid", "email": info.get("email_address", ""), "detail": "", "help_url": ""})
         except accounts.AccountError as e:
-            rows.append({"name": name, "status": "expired", "email": "", "detail": str(e)})
+            rows.append({"name": name, "status": "expired", "email": "", "detail": str(e), "help_url": ""})
         except Exception as e:  # noqa: BLE001
-            rows.append({"name": name, "status": "error", "email": "", "detail": str(e)})
+            detail, url = _friendly_error(e)
+            rows.append({"name": name, "status": "error", "email": "", "detail": detail, "help_url": url})
     return rows
 
 
@@ -495,6 +523,7 @@ async function api(path, method="GET", body=null){
 }
 function el(id){return document.getElementById(id);}
 function flash(id,msg,good){const e=el(id);e.textContent=msg||"";e.className="flash "+(good?"ok":"bad");}
+function esc(s){return String(s==null?"":s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));}
 
 function renderPrereqs(p){
   const items=[
@@ -509,11 +538,17 @@ function renderAccounts(rows){
   if(!rows.length){body.innerHTML=`<tr><td colspan="4" class="muted">No accounts yet — add one below.</td></tr>`;return;}
   body.innerHTML=rows.map(r=>{
     const badge=`<span class="badge ${r.status}">${r.status}</span>`;
-    const reauth=r.status!=="valid"?`<button class="ghost" data-add="${r.name}">Reauthorize</button>`:
-      `<button class="ghost" data-test="${r.name}">Test</button>`;
-    return `<tr><td><b>${r.name}</b></td><td class="small muted">${r.email||"—"}</td>`+
+    const reauth=r.status!=="valid"?`<button class="ghost" data-add="${esc(r.name)}">Reauthorize</button>`:
+      `<button class="ghost" data-test="${esc(r.name)}">Test</button>`;
+    const main=`<tr><td><b>${esc(r.name)}</b></td><td class="small muted">${esc(r.email)||"—"}</td>`+
       `<td>${badge}</td><td class="row" style="justify-content:flex-end">`+
-      `${reauth} <button class="danger" data-remove="${r.name}">Remove</button></td></tr>`;
+      `${reauth} <button class="danger" data-remove="${esc(r.name)}">Remove</button></td></tr>`;
+    let note="";
+    if(r.status!=="valid" && r.detail){
+      const link=r.help_url?` <a href="${esc(r.help_url)}" target="_blank" rel="noopener">Enable the Gmail API →</a>`:"";
+      note=`<tr><td colspan="4" class="small" style="color:var(--bad);padding-top:0">${esc(r.detail)}${link}</td></tr>`;
+    }
+    return main+note;
   }).join("");
 }
 function renderConfig(c){

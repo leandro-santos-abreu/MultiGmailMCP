@@ -121,6 +121,24 @@ def test_account_statuses_marks_expired(monkeypatch):
     assert rows["old"]["status"] == "expired"
 
 
+def test_account_statuses_flags_disabled_gmail_api(monkeypatch):
+    monkeypatch.setattr(accounts, "list_account_names", lambda: ["t"])
+    monkeypatch.setattr(accounts, "load_credentials", lambda name: None)
+
+    def boom(name):
+        raise RuntimeError(
+            'HttpError 403 ... "Gmail API has not been used in project 783278571351 '
+            "before or it is disabled ... accessNotConfigured"
+        )
+
+    monkeypatch.setattr(gmail_client, "account_info", boom)
+
+    row = setup_app.account_statuses()[0]
+    assert row["status"] == "error"
+    assert "Gmail API" in row["detail"]
+    assert "project=783278571351" in row["help_url"]
+
+
 # --- credentials upload writes only after validation ---------------------
 
 def test_credentials_upload_validates_before_saving(monkeypatch, tmp_path):
