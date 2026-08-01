@@ -10,6 +10,7 @@ it's deliberately not a duplicate of the README.
 - `gmail_client.py` — thin Gmail API wrapper; every function takes `account_name` first and resolves credentials itself via `accounts.load_credentials`
 - `server.py` — MCP tool definitions (stdio transport); thin wrappers around `gmail_client`
 - `add_account.py` — one-time interactive OAuth CLI, not imported by the server
+- `setup_app.py` — optional local web UI (stdlib `http.server`) for setup/account management; standalone tooling, **not imported by the server**; reuses `accounts`/`gmail_client`; localhost-only + one-time-token gated; never renders token/credentials contents (specs/012)
 - `tests/` — pytest suite that mocks `gmail_client._service`, so it runs offline with no real credentials or token files. Covers the pure helpers, the `AccountError` convention, and the send audit/confirm gate. The live-account manual loop below still covers what a fake can't (real OAuth/refresh, an actual send).
 
 ## Commands

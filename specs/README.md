@@ -67,6 +67,8 @@ Expanding scope changes claims the current docs make. Any implementation pass
 | [009](009-test-harness.md) | Automated test suite | infra | none |
 | [010](010-mailbox-settings.md) | Filters, vacation responder, IMAP/POP | **settings.basic** | persistent config |
 | [011](011-forwarding-sendas-delegation.md) | Auto-forwarding, send-as aliases, delegation | **settings.basic + settings.sharing** | ⚠ exfiltration-sensitive |
+| [012](012-setup-ui.md) | Setup & account-management UI (local web app) | none (tooling) | local server; deletes tokens / writes config |
+| [013](013-packaging-distribution.md) | Package as an executable + distribution model | none (tooling) | build tooling; relocates data dir |
 
 ## Implementation status
 
@@ -84,6 +86,20 @@ All settings-mutating tools reuse `GMAIL_MCP_SEND_PHRASE`; 011 changes are
 audited to `settings.log`. Final scope set: `readonly + compose + modify +
 settings.basic + settings.sharing` (permanent-delete `mail.google.com`
 deliberately excluded).
+
+- **012 setup UI (implemented)** — a local web app (`setup_app.py`) for
+  install-check, credentials, account add/remove/**reauthorize**, status, and
+  Claude Desktop config generation. Targets the *setup* friction (not the
+  server's runtime); needs no new OAuth scope. Guides — but can't automate — the
+  Google Cloud Console step. Tested in `tests/test_setup_app.py`.
+
+Proposed, not yet implemented:
+
+- **013 packaging + distribution** — package the app (setup UI + server) as a
+  double-clickable binary. Key model decision: **ship the binary without
+  `credentials.json`; each user creates their own OAuth client via 012's helper**
+  — which sidesteps Google's verification wall. Requires one real code change
+  (relocate the data dir when frozen, in `accounts.py`). Depends on 012.
 
 Possible follow-ups, not specced: attaching local files to *outgoing* drafts
 (needs `MIMEMultipart` + reads local files into mail — a larger risk surface,

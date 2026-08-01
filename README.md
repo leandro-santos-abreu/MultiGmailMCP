@@ -23,6 +23,22 @@ hard-delete scope is left out on purpose. See "Scopes" below.
 
 ---
 
+## Prefer clicking to typing? (optional setup UI)
+
+After installing dependencies (Step 2), run:
+
+```bash
+python setup_app.py
+```
+
+It opens a small local web page (localhost only) that walks you through the
+Google Cloud step, connecting/reauthorizing accounts, and writing the Claude
+Desktop config for you. It can't click through Google Cloud Console *for* you,
+but it guides and validates every step. The manual walkthrough below still works
+and explains what the UI is doing under the hood.
+
+---
+
 ## Step 1 — Create a Google Cloud OAuth client
 
 This is the only fiddly part, and you only do it once (it covers *all* the
