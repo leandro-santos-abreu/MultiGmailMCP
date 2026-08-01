@@ -67,7 +67,7 @@ def main() -> int:
     print("Running:", " ".join(cmd))
     result = subprocess.run(cmd, cwd=ROOT)
     if result.returncode == 0:
-        print(f"\nBuilt dist/{APP_NAME}/ — test it with:  dist/{APP_NAME}/{APP_NAME} setup")
+        print(f"\nBuilt dist/{APP_NAME}/ — double-click the exe (or run `{APP_NAME} setup`) for the wizard.")
         print("IMPORTANT: verify `<exe> serve` prints nothing to stdout but MCP protocol.")
     return result.returncode
 

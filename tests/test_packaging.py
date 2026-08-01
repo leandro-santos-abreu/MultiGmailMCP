@@ -52,21 +52,22 @@ def test_main_serve_runs_server(monkeypatch):
     assert called.get("serve")
 
 
-def test_main_defaults_to_serve(monkeypatch):
-    import server
-
-    called = {}
-    monkeypatch.setattr(server.server, "run", lambda: called.setdefault("serve", True))
-    assert main([]) == 0
-    assert called.get("serve")
-
-
 def test_main_setup_runs_setup_app(monkeypatch):
     import setup_app
 
     called = {}
     monkeypatch.setattr(setup_app, "run", lambda *a, **k: called.setdefault("setup", True))
     assert main(["setup"]) == 0
+    assert called.get("setup")
+
+
+def test_main_defaults_to_setup(monkeypatch):
+    # A no-argument launch (double-click) opens the wizard, not the stdio server.
+    import setup_app
+
+    called = {}
+    monkeypatch.setattr(setup_app, "run", lambda *a, **k: called.setdefault("setup", True))
+    assert main([]) == 0
     assert called.get("setup")
 
 
