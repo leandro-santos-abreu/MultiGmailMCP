@@ -93,13 +93,13 @@ deliberately excluded).
   server's runtime); needs no new OAuth scope. Guides — but can't automate — the
   Google Cloud Console step. Tested in `tests/test_setup_app.py`.
 
-Proposed, not yet implemented:
-
-- **013 packaging + distribution** — package the app (setup UI + server) as a
-  double-clickable binary. Key model decision: **ship the binary without
-  `credentials.json`; each user creates their own OAuth client via 012's helper**
-  — which sidesteps Google's verification wall. Requires one real code change
-  (relocate the data dir when frozen, in `accounts.py`). Depends on 012.
+- **013 packaging + distribution (code parts implemented; build is manual)** —
+  `accounts.DATA_DIR` relocates state when frozen; `main.py` gives `serve`/`setup`
+  subcommands; `build.py` + `requirements-build.txt` drive PyInstaller and refuse
+  to bundle secrets. Model decision baked in: **ship the binary without
+  `credentials.json`; each user creates their own OAuth client via 012's helper**,
+  sidestepping Google's verification wall. The actual per-OS build + signing stay
+  manual. Tested in `tests/test_packaging.py`.
 
 Possible follow-ups, not specced: attaching local files to *outgoing* drafts
 (needs `MIMEMultipart` + reads local files into mail — a larger risk surface,

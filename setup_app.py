@@ -61,6 +61,19 @@ def build_config_snippet(command: str, server_script: str, phrase: str = "") -> 
     return entry
 
 
+def config_entry(phrase: str = "") -> dict:
+    """The Claude Desktop mcpServers entry for *this* install: the packaged
+    executable's `serve` subcommand when frozen (spec 013), else this Python
+    interpreter + server.py."""
+    if getattr(sys, "frozen", False):
+        entry = {"command": sys.executable, "args": ["serve"]}
+    else:
+        entry = build_config_snippet(sys.executable, str(Path(__file__).resolve().parent / "server.py"))
+    if phrase:
+        entry["env"] = {"GMAIL_MCP_SEND_PHRASE": phrase}
+    return entry
+
+
 def merge_claude_config(existing_text: str, entry: dict, server_name: str = "gmail-multi-account") -> str:
     """Merge our server entry into an existing claude_desktop_config.json's text,
     preserving any other mcpServers. Raises ValueError if the existing text is
@@ -161,9 +174,6 @@ class SetupApp:
         except (json.JSONDecodeError, UnicodeDecodeError):
             return {}
 
-    def _server_script(self) -> str:
-        return str(Path(__file__).resolve().parent / "server.py")
-
     # -- OAuth (background thread; the browser step can't be synchronous) ---
 
     def _start_auth(self, name: str) -> None:
@@ -185,7 +195,7 @@ class SetupApp:
     # -- status payload ----------------------------------------------------
 
     def _status_payload(self) -> dict:
-        entry = build_config_snippet(sys.executable, self._server_script())
+        entry = config_entry()
         return {
             "prereqs": {
                 "python_version": sys.version.split()[0],
@@ -202,7 +212,7 @@ class SetupApp:
 
     def _apply_config(self, payload: dict):
         phrase = (payload.get("phrase") or "").strip()
-        entry = build_config_snippet(sys.executable, self._server_script(), phrase)
+        entry = config_entry(phrase)
         cfg_path = Path(payload["path"]) if payload.get("path") else default_claude_config_path()
         existing = cfg_path.read_text(encoding="utf-8") if cfg_path.exists() else ""
         try:

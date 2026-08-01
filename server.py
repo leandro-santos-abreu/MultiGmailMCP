@@ -27,13 +27,13 @@ server = MCPServer("gmail-multi-account")
 # Append-only audit trail of every successful send. Gitignored. See README
 # "Sending mail" and specs/007. Deliberately records only non-secret metadata
 # (account name, ids, recipient, subject) — never token/credential material.
-AUDIT_LOG = Path(__file__).resolve().parent / "sent.log"
+AUDIT_LOG = accounts.DATA_DIR / "sent.log"
 
 # Append-only audit trail of forwarding/send-as/delegation changes — the
 # exfiltration-sensitive settings most likely to be planted silently (specs
 # 011). Gitignored. Records only account name, action, and target address —
 # never token/credential material.
-SETTINGS_LOG = Path(__file__).resolve().parent / "settings.log"
+SETTINGS_LOG = accounts.DATA_DIR / "settings.log"
 
 # Optional hard send gate. When GMAIL_MCP_SEND_PHRASE is set in the environment,
 # gmail_send_draft refuses unless the caller passes the exact same phrase, making
@@ -226,7 +226,7 @@ def gmail_save_attachment(
         if not dest.is_dir():
             return f"Destination directory not found (create it first): {dest_dir}"
     else:
-        dest = (Path(accounts.BASE_DIR) / "attachments").resolve()
+        dest = (accounts.DATA_DIR / "attachments").resolve()
         dest.mkdir(exist_ok=True)
 
     try:

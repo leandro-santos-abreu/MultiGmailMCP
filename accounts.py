@@ -6,6 +6,8 @@ OAuth refresh token for that account. add_account.py creates these files;
 server.py and gmail_client.py only ever read and (silently) refresh them.
 """
 
+import os
+import sys
 from pathlib import Path
 
 from google.auth.exceptions import RefreshError
@@ -13,8 +15,38 @@ from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
 
 BASE_DIR = Path(__file__).resolve().parent
-TOKENS_DIR = BASE_DIR / "tokens"
-CREDENTIALS_FILE = BASE_DIR / "credentials.json"
+
+
+def resolve_data_dir(env: dict | None = None, frozen: bool | None = None, platform: str | None = None) -> Path:
+    """Where mutable state (tokens/, credentials.json, sent.log, settings.log,
+    attachments/) lives.
+
+    In a normal dev/source run this is the repo dir (BASE_DIR), unchanged. In a
+    packaged build (`sys.frozen`, spec 013) BASE_DIR points inside a temporary,
+    possibly read-only bundle, so state goes to a stable per-user config dir
+    instead. `GMAIL_MCP_DATA_DIR` overrides everything (and is the test seam)."""
+    env = os.environ if env is None else env
+    frozen = getattr(sys, "frozen", False) if frozen is None else frozen
+    platform = sys.platform if platform is None else platform
+
+    override = env.get("GMAIL_MCP_DATA_DIR")
+    if override:
+        return Path(override)
+    if not frozen:
+        return BASE_DIR
+
+    home = Path(env.get("USERPROFILE") or env.get("HOME") or Path.home())
+    if platform == "win32":
+        return Path(env.get("APPDATA") or (home / "AppData" / "Roaming")) / "GmailMCP"
+    if platform == "darwin":
+        return home / "Library" / "Application Support" / "GmailMCP"
+    return Path(env.get("XDG_CONFIG_HOME") or (home / ".config")) / "GmailMCP"
+
+
+DATA_DIR = resolve_data_dir()
+DATA_DIR.mkdir(parents=True, exist_ok=True)
+TOKENS_DIR = DATA_DIR / "tokens"
+CREDENTIALS_FILE = DATA_DIR / "credentials.json"
 
 # Search/read, draft/send, organise mail (labels, archive, read-state, star,
 # trash), and manage settings — filters/vacation/IMAP/POP (settings.basic) plus

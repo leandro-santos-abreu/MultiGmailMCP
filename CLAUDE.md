@@ -11,6 +11,7 @@ it's deliberately not a duplicate of the README.
 - `server.py` — MCP tool definitions (stdio transport); thin wrappers around `gmail_client`
 - `add_account.py` — one-time interactive OAuth CLI, not imported by the server
 - `setup_app.py` — optional local web UI (stdlib `http.server`) for setup/account management; standalone tooling, **not imported by the server**; reuses `accounts`/`gmail_client`; localhost-only + one-time-token gated; never renders token/credentials contents (specs/012)
+- `main.py` — packaging entry point with `serve` (stdio server) / `setup` (UI) subcommands; what the built executable runs (specs/013). `build.py` packages it with PyInstaller.
 - `tests/` — pytest suite that mocks `gmail_client._service`, so it runs offline with no real credentials or token files. Covers the pure helpers, the `AccountError` convention, and the send audit/confirm gate. The live-account manual loop below still covers what a fake can't (real OAuth/refresh, an actual send).
 
 ## Commands
@@ -33,6 +34,7 @@ it's deliberately not a duplicate of the README.
 
 - `server.py` tool functions catch `accounts.AccountError` only and return `str(e)`. Everything else (bad `message_id`, Google API errors, network failures) should propagate rather than being swallowed — a visible error is more useful here than a silently wrong result.
 - Every tool needs `annotations=ToolAnnotations(...)`: `read_only_hint=True` for anything that doesn't write, `destructive_hint=True` for anything irreversible. An unannotated tool makes Claude Desktop treat it as maximally risky by default — safe, but needless approval friction for what should be a plain read.
+- Mutable state (tokens, credentials.json, sent.log, settings.log, attachments/) lives under `accounts.DATA_DIR` — the repo dir in a source run, a per-user config dir when frozen (spec 013). Don't hardcode `Path(__file__)` for state; use `accounts.DATA_DIR` so packaged builds write to a stable, writable location. `GMAIL_MCP_DATA_DIR` overrides it (and is the test seam).
 
 ## Hard constraints — read the reasoning before changing these
 

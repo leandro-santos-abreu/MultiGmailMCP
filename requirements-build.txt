@@ -1,0 +1,7 @@
+# Build-only dependencies for packaging the app as an executable (spec 013).
+# Kept separate from the runtime requirements.txt. Build per-OS (PyInstaller
+# can't cross-compile): run on the OS you're targeting.
+#   pip install -r requirements-build.txt
+#   python build.py
+-r requirements.txt
+pyinstaller>=6,<7
