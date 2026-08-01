@@ -24,19 +24,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
 APP_NAME = "gmail-mcp"
-
-# Google client libraries load some parts dynamically; make sure PyInstaller
-# keeps them. cache_discovery=False (gmail_client) already avoids the discovery
-# cache data-file issue.
-HIDDEN_IMPORTS = [
-    "googleapiclient",
-    "googleapiclient.discovery",
-    "google.auth",
-    "google.oauth2.credentials",
-    "google_auth_oauthlib",
-    "google_auth_oauthlib.flow",
-    "google_auth_httplib2",
-]
+SPEC = ROOT / "gmail-mcp.spec"  # committed spec: hidden imports + discovery-doc slimming
 
 # Never let a real credential get swept into a distributable bundle.
 FORBIDDEN = ["credentials.json", "tokens", "sent.log", "settings.log"]
@@ -53,16 +41,9 @@ def _guard_no_secrets() -> None:
 
 def main() -> int:
     _guard_no_secrets()
-    cmd = [
-        sys.executable, "-m", "PyInstaller",
-        "--noconfirm", "--clean",
-        "--name", APP_NAME,
-        "--onedir",
-        "--console",  # serve speaks stdio; must stay a console app
-    ]
-    for hidden in HIDDEN_IMPORTS:
-        cmd += ["--hidden-import", hidden]
-    cmd += [str(ROOT / "main.py")]
+    # Build from the committed spec (not CLI flags) so the discovery-doc slimming
+    # and hidden imports live in one reproducible, reviewable place.
+    cmd = [sys.executable, "-m", "PyInstaller", "--noconfirm", "--clean", str(SPEC)]
 
     print("Running:", " ".join(cmd))
     result = subprocess.run(cmd, cwd=ROOT)

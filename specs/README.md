@@ -99,8 +99,9 @@ deliberately excluded).
   to bundle secrets. Model decision baked in: **ship the binary without
   `credentials.json`; each user creates their own OAuth client via 012's helper**,
   sidestepping Google's verification wall. A Windows build has been run and
-  verified (`dist/gmail-mcp/`, ~143 MB, `serve` stdout-clean); macOS/Linux builds
-  and signing stay manual. Tested in `tests/test_packaging.py`.
+  verified (`dist/gmail-mcp/`, ~44 MB after slimming Google's unused discovery
+  docs, `serve` stdout-clean); macOS/Linux builds and signing stay manual. Tested
+  in `tests/test_packaging.py`.
 
 Possible follow-ups, not specced: attaching local files to *outgoing* drafts
 (needs `MIMEMultipart` + reads local files into mail — a larger risk surface,

@@ -6,12 +6,15 @@
   `setup_app.config_entry` emits a `["serve"]` config when frozen; `build.py` +
   `requirements-build.txt` (PyInstaller onedir, hidden-imports, refuses to bundle
   secrets). Tested in `tests/test_packaging.py`. **A Windows build has been run
-  and verified:** `python build.py` → `dist/gmail-mcp/` (~143 MB onedir);
-  `gmail-mcp.exe serve` starts clean with **0 bytes on stdout** (MCP-safe) and no
-  import errors, and the frozen `resolve_data_dir` created `%APPDATA%\GmailMCP`
-  as intended. **Still manual / per-OS:** macOS/Linux builds, code signing /
-  notarization, slimming the bundle (it currently pulls in `mcp`'s unused
-  `uvicorn`/`opentelemetry` stack), and the clean-machine checklist below.
+  and verified:** `python build.py` → `dist/gmail-mcp/`, **~44 MB** onedir. A
+  committed `gmail-mcp.spec` drops `googleapiclient`'s bundled discovery docs for
+  ~585 unused Google APIs (~99 MB), keeping only `gmail.v1.json` — which still
+  resolves `build("gmail","v1", cache_discovery=False)` offline (verified), so no
+  behaviour change. `gmail-mcp.exe serve` starts clean with **0 bytes on stdout**
+  (MCP-safe) and no import errors; a no-argument launch (double-click) opens the
+  setup wizard; the frozen `resolve_data_dir` created `%APPDATA%\GmailMCP` as
+  intended. **Still manual / per-OS:** macOS/Linux builds, code signing /
+  notarization, and the clean-machine checklist below.
 - **Depends on:** [012](012-setup-ui.md) — the guided per-user onboarding this
   distribution model relies on.
 - **New OAuth scope required:** none.

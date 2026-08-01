@@ -16,6 +16,8 @@ venv/
 build/
 dist/
 *.spec
+# ...except the committed spec, which carries the bundle-slimming logic:
+!gmail-mcp.spec
 
 # Editors / IDEs
 .idea/

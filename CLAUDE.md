@@ -23,7 +23,7 @@ it's deliberately not a duplicate of the README.
   (the checked-in venv is actually `.venv/` on Windows: `.venv/Scripts/python -m pytest -q`)
 - Authorize an account (opens a real browser — must run locally, can't run headless): `venv/bin/python add_account.py <name>` — or `python setup_app.py` for the web UI
 - Run the packaged entry points in dev: `python main.py serve` (stdio server) / `python main.py setup` (UI)
-- Build a standalone binary (per-OS; PyInstaller can't cross-compile): `venv/bin/pip install -r requirements-build.txt` then `python build.py` → `dist/gmail-mcp/`. `build.py` refuses to run if `credentials.json`/`tokens/`/logs are in the tree (never bundle secrets); `main.py serve` must keep stdout free of anything but MCP protocol.
+- Build a standalone binary (per-OS; PyInstaller can't cross-compile): `venv/bin/pip install -r requirements-build.txt` then `python build.py` → `dist/gmail-mcp/`. Builds from the committed `gmail-mcp.spec`, which drops googleapiclient's bundled discovery docs for ~585 unused APIs (keeps only `gmail.v1.json`) to cut the bundle ~143 MB → ~44 MB. `build.py` refuses to run if `credentials.json`/`tokens/`/logs are in the tree (never bundle secrets); `main.py serve` must keep stdout free of anything but MCP protocol.
 - Exercise tools directly, without Claude Desktop or a live Gmail account:
   ```python
   import asyncio, server
