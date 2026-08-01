@@ -26,16 +26,20 @@ ROOT = Path(__file__).resolve().parent
 APP_NAME = "gmail-mcp"
 SPEC = ROOT / "gmail-mcp.spec"  # committed spec: hidden imports + discovery-doc slimming
 
-# Never let a real credential get swept into a distributable bundle.
-FORBIDDEN = ["credentials.json", "tokens", "sent.log", "settings.log"]
+# Never let a real credential get swept into a distributable bundle. An empty
+# tokens/ (just its .gitkeep) is fine — we only refuse on actual token files.
+FORBIDDEN_FILES = ["credentials.json", "sent.log", "settings.log"]
 
 
 def _guard_no_secrets() -> None:
-    present = [name for name in FORBIDDEN if (ROOT / name).exists()]
+    present = [name for name in FORBIDDEN_FILES if (ROOT / name).exists()]
+    token_files = list((ROOT / "tokens").glob("*.json"))
+    if token_files:
+        present.append(f"tokens/ ({len(token_files)} token file(s))")
     if present:
         raise SystemExit(
-            "Refusing to build: these must not be bundled — move them out of the "
-            f"project dir first: {', '.join(present)}"
+            "Refusing to build — these hold secrets and must not be bundled; move "
+            f"them out of the project dir first: {', '.join(present)}"
         )
 
 
