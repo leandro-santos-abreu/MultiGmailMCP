@@ -1,13 +1,22 @@
+# Secrets & per-account state — never commit these
 credentials.json
 tokens/*.json
 sent.log
 settings.log
 attachments/
+
+# Python
 __pycache__/
 *.pyc
 .venv/
 venv/
 .pytest_cache/
+
+# Packaging build artifacts (spec 013: build.py / PyInstaller)
 build/
 dist/
 *.spec
+
+# Editors / IDEs
+.idea/
+.vscode/

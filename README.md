@@ -1,10 +1,10 @@
 # Gmail Multi-Account MCP Server (for Claude Desktop)
 
-A local MCP server that lets Claude Desktop search, read, draft, and send
-email across as many Gmail accounts as you configure — "check my work
-inbox for anything from Sarah" / "draft a reply from my personal account"
-— all running on your own machine. Nothing is hosted; Claude Desktop
-launches this script itself.
+A local MCP server that lets Claude Desktop search, read, draft, send, and
+organize email — and manage mailbox settings — across as many Gmail accounts
+as you configure — "check my work inbox for anything from Sarah" / "draft a
+reply from my personal account" — all running on your own machine. Nothing is
+hosted; Claude Desktop launches this script itself.
 
 **Scope, on purpose:** this can search, read, draft, send, and organize
 mail (labels, archive, read/unread, star, trash) — but sending stays a
@@ -138,7 +138,7 @@ for invoices from this month."*
 | `gmail_delete_draft(account, draft_id)` | Deletes an unsent draft (drafts only — can't touch real messages) |
 | `gmail_list_drafts(account, max_results)` | Lists saved drafts (subject + recipient only) |
 | `gmail_get_draft(account, draft_id)` | Fetches a draft's full contents, for a last check before sending |
-| `gmail_send_draft(account, draft_id)` | Sends an existing draft. Irreversible — see "Sending mail" below |
+| `gmail_send_draft(account, draft_id, confirm)` | Sends an existing draft. Irreversible; `confirm` phrase required if `GMAIL_MCP_SEND_PHRASE` is set — see "Sending mail" below |
 | `gmail_modify_labels(account, message_id, add, remove)` | Adds/removes labels on a message (by label id) |
 | `gmail_mark_read` / `gmail_mark_unread(account, message_id)` | Toggles the read state |
 | `gmail_archive` / `gmail_unarchive(account, message_id)` | Removes from / returns to the inbox |
@@ -229,8 +229,9 @@ Google restricts unverified ("Testing" mode) apps that use Gmail scopes:
 **refresh tokens for test users expire after 7 days**, regardless of how
 you built the app. This isn't a bug here — it's Google's policy for any
 personal script like this one. When it expires, you'll see a message
-telling you to rerun `add_account.py <name>` for that account; that's all
-you need to do. Getting Google to lift this (moving your OAuth app to
+telling you to rerun `add_account.py <name>` for that account (or just click
+**Reauthorize** next to it in `python setup_app.py`); that's all you need to
+do. Getting Google to lift this (moving your OAuth app to
 "Production") requires their formal app-verification process, including a
 security assessment for these particular scopes — real weeks of process
 for a tool only you use, so it's not worth doing here.
@@ -248,7 +249,7 @@ for a tool only you use, so it's not worth doing here.
 
 - **"No module named mcp"** — you're not using the venv's Python. Double check the `command` path in your Claude Desktop config.
 - **Server doesn't show up in Claude** — config JSON is probably invalid (missing comma, wrong path). Check Claude Desktop's MCP logs (same Developer settings page) for the exact error.
-- **`invalid_grant` / "authorization has expired"** — see "Why do I have to reauthorize so often?" above; just rerun `add_account.py <name>`.
+- **`invalid_grant` / "authorization has expired"** — see "Why do I have to reauthorize so often?" above; rerun `add_account.py <name>`, or click **Reauthorize** in the setup UI (`python setup_app.py`).
 - **"Access blocked: this app is blocked"** instead of the usual warning — you likely forgot to add that Google address as a test user in Step 1.4.
 
 ---
@@ -258,7 +259,7 @@ for a tool only you use, so it's not worth doing here.
 - **Organizing mail (built in):** labels, archive, read/unread, star, and Trash now ship via `gmail.modify` (see the tools table and Scopes). Permanent deletion is intentionally excluded. If you set this server up before these existed, rerun `add_account.py` once per account to pick up the new scope.
 - **Settings (built in):** filters, vacation, IMAP/POP (`gmail.settings.basic`) and forwarding, send-as, delegation (`gmail.settings.sharing`). All settings-changing tools are gated behind the confirmation phrase (see "Sending mail"); forwarding/send-as/delegation changes are also written to `settings.log`. Rerun `add_account.py` per account to pick up the scopes.
 - **More accounts:** just run `add_account.py <new-name>` again — no config changes needed.
-- **Run it as a standalone app (spec'd; build is a manual per-OS step):** `main.py` exposes `serve` (the stdio server) and `setup` (the UI) subcommands, and `build.py` packages them into one binary with PyInstaller. The distribution model ships the binary **without** `credentials.json` — each user creates their own OAuth client via the setup UI, which is what keeps it clear of Google's app-verification requirement. See `specs/013-packaging-distribution.md`.
+- **Run it as a standalone binary (built; per-OS):** `main.py` exposes `serve` (the stdio server) and `setup` (the UI) subcommands, and `build.py` packages them into one binary with PyInstaller — `python build.py` → `dist/gmail-mcp/` (verified: ~140 MB onedir, `serve` keeps stdout MCP-clean). The binary bundles Python **and every dependency**, so the target machine needs no Python, `venv`, or `pip` — the "install dependencies" step disappears; the setup UI then writes a Claude Desktop config pointing at `gmail-mcp.exe serve`. Distribution model: ship the binary **without** `credentials.json` — each user creates their own OAuth client via the setup UI, keeping it clear of Google's app-verification requirement. Build per-OS (PyInstaller can't cross-compile); unsigned binaries trip SmartScreen/Gatekeeper until code-signed. See `specs/013-packaging-distribution.md`.
 - **Stricter send confirmation (built in):** two harder gates than docstring wording now ship in `gmail_send_draft`:
-  - **Audit log** — every successful send appends one line (timestamp, account, draft/message id, recipient, subject — never any token data) to `sent.log` next to `server.py` (gitignored). It's best-effort: a logging error never blocks or undoes a send.
+  - **Audit log** — every successful send appends one line (timestamp, account, draft/message id, recipient, subject — never any token data) to `sent.log` in the data dir (the project folder in a source run, a per-user config dir when packaged; gitignored). It's best-effort: a logging error never blocks or undoes a send.
   - **Confirmation phrase** — set the env var `GMAIL_MCP_SEND_PHRASE` (e.g. in your Claude Desktop server config's `env`) to any phrase, and `gmail_send_draft` will refuse to send unless it's called with that exact phrase in its `confirm` argument. This makes "confirm before sending" a code-level precondition, not just an instruction the model is asked to follow. Unset (the default), sending behaves exactly as before.
