@@ -123,6 +123,8 @@ for invoices from this month."*
 | Tool | What it does |
 |---|---|
 | `list_accounts` | Lists configured account names |
+| `gmail_add_account(account)` | Starts connecting a new Gmail account — opens a browser for the user to sign in (interactive machines only) |
+| `gmail_add_account_status(account)` | Reports whether an in-progress add-account sign-in finished |
 | `gmail_account_info(account)` | Shows the real email address behind an account name, plus message/thread totals |
 | `gmail_list_labels(account)` | Lists an account's labels as id/name/type |
 | `gmail_search(account, query, max_results)` | Searches using Gmail's own query syntax (`from:`, `is:unread`, `after:`, etc.) |

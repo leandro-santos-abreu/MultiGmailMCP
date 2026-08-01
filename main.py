@@ -21,11 +21,30 @@ binary can do both via a subcommand.
 import sys
 
 
+def _hide_console_on_windows() -> None:
+    """Make the stdio server windowless. When a client (Claude Desktop) launches
+    a console exe, Windows may allocate a console window; hide it. stdio flows
+    through inherited pipes, which are unaffected by the window being hidden, so
+    the MCP stream keeps working. No-op on non-Windows or when no console is
+    attached. Never writes to stdout (that would corrupt the MCP stream)."""
+    if sys.platform != "win32":
+        return
+    try:
+        import ctypes
+
+        hwnd = ctypes.windll.kernel32.GetConsoleWindow()
+        if hwnd:
+            ctypes.windll.user32.ShowWindow(hwnd, 0)  # SW_HIDE
+    except Exception:
+        pass
+
+
 def main(argv: list[str] | None = None) -> int:
     args = list(sys.argv[1:] if argv is None else argv)
     cmd = args[0] if args else "setup"
 
     if cmd == "serve":
+        _hide_console_on_windows()  # run the stdio server headless (no window)
         import server
 
         server.server.run()  # stdio transport

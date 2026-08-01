@@ -11,8 +11,8 @@ it's deliberately not a duplicate of the README.
 - `server.py` — MCP tool definitions (stdio transport); thin wrappers around `gmail_client`
 - `add_account.py` — one-time interactive OAuth CLI, not imported by the server
 - `setup_app.py` — optional local web UI (stdlib `http.server`) for setup/account management; standalone tooling, **not imported by the server**; reuses `accounts`/`gmail_client`; localhost-only + one-time-token gated; never renders token/credentials contents (specs/012)
-- `main.py` — packaging entry point with `serve` (stdio server) / `setup` (UI) subcommands; what the built executable runs (specs/013). `build.py` packages it with PyInstaller.
-- `tests/` — pytest suite (126 tests) that mocks `gmail_client._service`, so it runs offline with no real credentials or token files. Covers the pure helpers, the `AccountError` convention, every tool group (read/draft/organize/settings/forwarding/attachments), the send audit + confirm gate, the setup UI's request handling, and the packaging data-dir/dispatch logic. The live-account manual loop below still covers what a fake can't (real OAuth/refresh, an actual send, a real PyInstaller build).
+- `main.py` — packaging entry point with `serve` (stdio server) / `setup` (UI) subcommands; what the built executable runs (specs/013). `build.py` packages it with PyInstaller. `serve` hides the console window on Windows so it runs headless when Claude Desktop launches it; a no-argument launch (double-click) opens `setup`.
+- `tests/` — pytest suite (132 tests) that mocks `gmail_client._service`, so it runs offline with no real credentials or token files. Covers the pure helpers, the `AccountError` convention, every tool group (read/draft/organize/settings/forwarding/attachments), the send audit + confirm gate, the setup UI's request handling, and the packaging data-dir/dispatch logic. The live-account manual loop below still covers what a fake can't (real OAuth/refresh, an actual send, a real PyInstaller build).
 
 ## Commands
 

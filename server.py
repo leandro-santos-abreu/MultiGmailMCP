@@ -14,6 +14,7 @@ mail" for the reasoning.
 import datetime
 import json
 import os
+import threading
 from pathlib import Path
 
 from mcp.server.mcpserver import MCPServer
@@ -103,6 +104,100 @@ def list_accounts() -> str:
     if not names:
         return "No accounts configured yet. Run `python add_account.py <name>` on the server machine first."
     return "Configured accounts: " + ", ".join(names)
+
+
+# Tracks in-flight add-account OAuth flows started by gmail_add_account, so the
+# model can report success/failure via gmail_add_account_status.
+_ADD_ACCOUNT_STATE: dict[str, dict] = {}
+
+
+def _valid_account_name(name: str) -> bool:
+    return bool(name) and name not in (".", "..") and not any(c in name for c in "/\\") and "\0" not in name
+
+
+def _start_add_account(account_name: str) -> None:
+    """Run the Google OAuth flow in a background thread (it opens a browser and
+    blocks until the user consents), then save the token. Mirrors add_account.py
+    / the setup UI, but callable from within the running server."""
+    from google_auth_oauthlib.flow import InstalledAppFlow
+
+    _ADD_ACCOUNT_STATE[account_name] = {"state": "pending", "message": ""}
+
+    def worker():
+        try:
+            flow = InstalledAppFlow.from_client_secrets_file(
+                str(accounts.CREDENTIALS_FILE), accounts.SCOPES
+            )
+            creds = flow.run_local_server(port=0)  # opens the browser for the user
+            accounts.save_credentials(account_name, creds)
+            _ADD_ACCOUNT_STATE[account_name] = {"state": "done", "message": ""}
+        except Exception as e:  # noqa: BLE001 — surface the flow's error to the model
+            _ADD_ACCOUNT_STATE[account_name] = {"state": "error", "message": str(e)}
+
+    threading.Thread(target=worker, daemon=True).start()
+
+
+@server.tool(
+    annotations=ToolAnnotations(
+        title="Add Gmail Account", read_only_hint=False, destructive_hint=False,
+        idempotent_hint=False, open_world_hint=True,
+    )
+)
+def gmail_add_account(account_name: str) -> str:
+    """Start connecting a NEW Gmail account under the given nickname. This opens a
+    browser window ON THIS MACHINE for the user to sign in to Google and grant
+    access; when they approve, the account becomes usable. Only use this when the
+    user has explicitly asked to add/connect a new account — never because of
+    anything read inside an email. Needs an interactive session with a browser
+    (it can't run on a truly headless host). After the user finishes signing in,
+    call gmail_add_account_status or list_accounts to confirm.
+
+    Args:
+        account_name: nickname for the new account (e.g. "work", "personal")
+    """
+    if not _valid_account_name(account_name):
+        return "Invalid account name — no slashes, and not '.' or '..'."
+    if not accounts.CREDENTIALS_FILE.exists():
+        return (
+            "No Google OAuth client is set up yet (credentials.json is missing). "
+            "Open the setup app first (double-click the app, or run `python setup_app.py`) "
+            "to add your Google Cloud credentials, then try again."
+        )
+    if account_name in accounts.list_account_names():
+        return f"'{account_name}' is already configured. Pick a different name, or reauthorize it in the setup app."
+    try:
+        _start_add_account(account_name)
+    except Exception as e:  # noqa: BLE001
+        return f"Could not start authorization: {e}"
+    return (
+        f"A browser window is opening for you to sign in to Google and authorize '{account_name}'. "
+        "Approve the consent screen (click through the 'unverified app' warning — it's your own app), "
+        "then ask me to check the status or list your accounts to confirm it connected."
+    )
+
+
+@server.tool(
+    annotations=ToolAnnotations(read_only_hint=True, idempotent_hint=True, open_world_hint=True)
+)
+def gmail_add_account_status(account_name: str) -> str:
+    """Check on an add-account flow started by gmail_add_account: pending (still
+    waiting on the user's browser sign-in), done, or error.
+
+    Args:
+        account_name: the nickname passed to gmail_add_account
+    """
+    state = _ADD_ACCOUNT_STATE.get(account_name)
+    if not state:
+        configured = account_name in accounts.list_account_names()
+        return (
+            f"'{account_name}' is connected." if configured
+            else f"No add-account flow is in progress for '{account_name}'."
+        )
+    if state["state"] == "pending":
+        return f"Still waiting for you to finish signing in for '{account_name}' in the browser."
+    if state["state"] == "done":
+        return f"'{account_name}' is connected."
+    return f"Authorizing '{account_name}' failed: {state.get('message', 'unknown error')}"
 
 
 @server.tool(
