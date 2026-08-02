@@ -69,6 +69,7 @@ Expanding scope changes claims the current docs make. Any implementation pass
 | [011](011-forwarding-sendas-delegation.md) | Auto-forwarding, send-as aliases, delegation | **settings.basic + settings.sharing** | ⚠ exfiltration-sensitive |
 | [012](012-setup-ui.md) | Setup & account-management UI (local web app) | none (tooling) | local server; deletes tokens / writes config |
 | [013](013-packaging-distribution.md) | Package as an executable + distribution model | none (tooling) | build tooling; relocates data dir |
+| [014](014-calendar-support.md) | Google Calendar support (read + events) | **calendar.readonly + calendar.events** | event delete; notifying attendees = the send analog |
 
 ## Implementation status
 
@@ -92,6 +93,14 @@ deliberately excluded).
   Claude Desktop config generation. Targets the *setup* friction (not the
   server's runtime); needs no new OAuth scope. Guides — but can't automate — the
   Google Cloud Console step. Tested in `tests/test_setup_app.py`.
+
+- **014 Google Calendar support** — a new `calendar_client.py` + `calendar_*`
+  tools (list calendars/events, free/busy, cross-account agenda, create/update/
+  delete/RSVP/quick-add) under the *same* server, accounts, and OAuth client.
+  Adds `calendar.readonly` + `calendar.events` (a reauth). Key safety parallel:
+  notifying event attendees is the Gmail "send" analog — `send_updates` defaults
+  to `none` and reuses the confirm-phrase gate. Packaging note: the build's
+  discovery-doc filter must also keep `calendar.v3.json`. Ships as v1.1.0.
 
 - **013 packaging + distribution (code parts implemented; build is manual)** —
   `accounts.DATA_DIR` relocates state when frozen; `main.py` gives `serve`/`setup`
