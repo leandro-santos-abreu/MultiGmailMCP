@@ -74,15 +74,16 @@ Expanding scope changes claims the current docs make. Any implementation pass
 
 ## Implementation status
 
-**All specs implemented** — each its own commit on `feature/guardrails`, all
-tested (90 tests green):
+**All specs implemented** — tested (163 tests green):
 
 - **009** test harness · **007** send audit + confirm gate · **008** organize
   mail (`gmail.modify`) · **006** account identity + labels · **001** read
   thread · **003** cross-account search · **004** draft update/delete · **005**
   reply/forward helper · **010** settings (filters/vacation/IMAP/POP,
   `gmail.settings.basic`) · **011** forwarding/send-as/delegation
-  (`gmail.settings.sharing`) · **002** attachments (list + save-to-disk).
+  (`gmail.settings.sharing`) · **002** attachments · **012** setup UI · **013**
+  packaging (single-file exe, build verified) · **015** update checker · **014**
+  Google Calendar (v1.1.0).
 
 All settings-mutating tools reuse `GMAIL_MCP_SEND_PHRASE`; 011 changes are
 audited to `settings.log`. Final scope set: `readonly + compose + modify +
@@ -95,21 +96,22 @@ deliberately excluded).
   server's runtime); needs no new OAuth scope. Guides — but can't automate — the
   Google Cloud Console step. Tested in `tests/test_setup_app.py`.
 
-- **014 Google Calendar support** — a new `calendar_client.py` + `calendar_*`
-  tools (list calendars/events, free/busy, cross-account agenda, create/update/
-  delete/RSVP/quick-add) under the *same* server, accounts, and OAuth client.
-  Adds `calendar.readonly` + `calendar.events` (a reauth). Key safety parallel:
-  notifying event attendees is the Gmail "send" analog — `send_updates` defaults
-  to `none` and reuses the confirm-phrase gate. Packaging note: the build's
-  discovery-doc filter must also keep `calendar.v3.json`. Ships as v1.1.0.
+- **014 Google Calendar support (implemented)** — `calendar_client.py` + 10
+  `calendar_*` tools (list calendars/events, get, free/busy, cross-account
+  agenda, quick-add, create/update/delete/RSVP) under the *same* server,
+  accounts, and OAuth client. Adds `calendar.readonly` + `calendar.events` (a
+  reauth). Notifying event attendees is the Gmail "send" analog — `send_updates`
+  defaults to `none` and reuses the confirm-phrase gate + audit. The build's
+  discovery-doc filter now also keeps `calendar.v3.json`. **Version bumped to
+  1.1.0**; cutting the release makes the tag + rebuilt exe.
 
-- **015 update checker** — the packaged exe learns when a newer GitHub release
-  exists and nudges the user three ways: a setup-UI banner, an optional
-  `check_for_updates` tool, and a **proactive session-start notice** (the server
-  puts a one-time "update available" line in its MCP `instructions` so Claude
-  mentions it near the user's first prompt — model-cooperative, opt-outable).
-  Notify-only: **no auto-download/install**, nothing on `serve`'s stdout,
-  best-effort + cached. Needs a real `version.py` baked into the build first.
+- **015 update checker (implemented)** — the packaged exe learns when a newer
+  GitHub release exists and nudges the user three ways: a setup-UI banner, an
+  optional `check_for_updates` tool, and a **proactive session-start notice** (a
+  one-time "update available" line in the server's MCP `instructions`, computed
+  from the cache at startup, so Claude mentions it near the user's first prompt —
+  model-cooperative, opt-outable). Notify-only, nothing on `serve`'s stdout,
+  best-effort + cached. `version.py` is the baked-in version source of truth.
 
 - **013 packaging + distribution (code parts implemented; build is manual)** —
   `accounts.DATA_DIR` relocates state when frozen; `main.py` gives `serve`/`setup`

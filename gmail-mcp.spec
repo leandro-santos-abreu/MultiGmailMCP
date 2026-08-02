@@ -31,7 +31,8 @@ a = Analysis(
 def _keep(dest):
     p = dest.replace('\\', '/')
     if 'googleapiclient/discovery_cache/documents/' in p:
-        return '/gmail.' in p  # keep only Gmail's discovery doc(s)
+        # keep only the discovery docs we actually build: Gmail + Calendar
+        return '/gmail.' in p or '/calendar.' in p
     return True
 
 

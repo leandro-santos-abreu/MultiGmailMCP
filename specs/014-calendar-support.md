@@ -1,6 +1,12 @@
 # Spec 014 — Google Calendar support
 
-- **Status:** proposed
+- **Status:** **implemented** — `calendar_client.py` + 10 `calendar_*` tools
+  (list calendars/events, get, free/busy, cross-account agenda, quick-add,
+  create/update/delete/RSVP). Scopes added to `accounts.SCOPES`; the build spec's
+  discovery-doc filter now keeps `calendar.v3.json`; notifying attendees
+  (`send_updates="all"`) reuses `_phrase_blocks` + `_audit_settings`. Tested in
+  `tests/test_calendar.py`. Version bumped to **1.1.0** (this is the v1.1.0
+  feature; cutting the release creates the tag + rebuilt exe + reauth).
 - **New OAuth scopes required:** `calendar.readonly` + `calendar.events`
   (a scope change → every account reauthorizes; see "Rollout" — this is a v1.1
   change, released `v1.0.0` predates it).

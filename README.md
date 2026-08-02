@@ -1,10 +1,11 @@
 # Gmail Multi-Account MCP Server (for Claude Desktop)
 
 A local MCP server that lets Claude Desktop search, read, draft, send, and
-organize email — and manage mailbox settings — across as many Gmail accounts
-as you configure — "check my work inbox for anything from Sarah" / "draft a
-reply from my personal account" — all running on your own machine. Nothing is
-hosted; Claude Desktop launches this script itself.
+organize email — manage mailbox settings, and handle your **Google Calendar** —
+across as many Google accounts as you configure — "check my work inbox for
+anything from Sarah" / "draft a reply from my personal account" / "what's on my
+calendar Friday?" — all running on your own machine. Nothing is hosted; Claude
+Desktop launches this script itself.
 
 **Scope, on purpose:** this can search, read, draft, send, and organize
 mail (labels, archive, read/unread, star, trash) — but sending stays a
@@ -155,6 +156,15 @@ for invoices from this month."*
 | `gmail_get_auto_forwarding` / `gmail_set_auto_forwarding(account, ...)` | Reads/sets auto-forwarding — **exfiltration vector**, heavily gated |
 | `gmail_list_send_as` / `gmail_create_send_as` / `gmail_delete_send_as(account, ...)` | Manages send-as aliases |
 | `gmail_list_delegates` / `gmail_add_delegate` / `gmail_delete_delegate(account, ...)` | Manages delegate access (usually Workspace-only) |
+| `calendar_list_calendars(account)` | Lists an account's calendars |
+| `calendar_list_events(account, calendar_id, time_min, time_max, query, max_results)` | Lists/searches events in a window (recurrences expanded) |
+| `calendar_list_events_all(time_min, time_max, ...)` | Same window across every account (cross-account agenda) |
+| `calendar_get_event(account, event_id, calendar_id)` | Full event details incl. attendee RSVPs |
+| `calendar_freebusy(account, time_min, time_max, calendar_ids)` | Busy blocks — the "am I free?" primitive |
+| `calendar_quick_add(account, text, calendar_id)` | Natural-language event ("Lunch Tue 1pm") — no attendees |
+| `calendar_create_event` / `calendar_update_event(account, ...)` | Create/edit an event; `send_updates="all"` (emails attendees) is gated |
+| `calendar_respond_to_event(account, event_id, response, ...)` | RSVP accepted/declined/tentative |
+| `calendar_delete_event(account, event_id, ...)` | Deletes an event — **destructive** (harder to recover than Gmail trash) |
 
 ---
 
@@ -204,6 +214,10 @@ This server requests these OAuth scopes:
 - `gmail.settings.basic` — manage filters, the vacation responder, and
   IMAP/POP access.
 - `gmail.settings.sharing` — manage send-as aliases and delegate access.
+- `calendar.readonly` — list calendars, read events, check free/busy.
+- `calendar.events` — create/update/delete events and RSVP. Emailing attendees
+  (`send_updates="all"`) is treated like sending mail: it defaults to **off**,
+  and turning it on is gated behind the confirmation phrase.
 
 The settings-changing tools (filters, vacation, IMAP/POP, forwarding,
 send-as, delegation) are **persistent** and some — a forwarding rule, a
@@ -260,6 +274,7 @@ for a tool only you use, so it's not worth doing here.
 
 - **Organizing mail (built in):** labels, archive, read/unread, star, and Trash now ship via `gmail.modify` (see the tools table and Scopes). Permanent deletion is intentionally excluded. If you set this server up before these existed, rerun `add_account.py` once per account to pick up the new scope.
 - **Settings (built in):** filters, vacation, IMAP/POP (`gmail.settings.basic`) and forwarding, send-as, delegation (`gmail.settings.sharing`). All settings-changing tools are gated behind the confirmation phrase (see "Sending mail"); forwarding/send-as/delegation changes are also written to `settings.log`. Rerun `add_account.py` per account to pick up the scopes.
+- **Google Calendar (built in):** read calendars/events, free/busy, a cross-account agenda, and create/update/delete/RSVP/quick-add events (`calendar.readonly` + `calendar.events`). Emailing attendees (`send_updates="all"`) defaults to off and is gated like sending mail. Adding the Calendar scopes means rerunning `add_account.py` (or the setup UI's **Reauthorize**) once per account.
 - **More accounts:** just run `add_account.py <new-name>` again — no config changes needed.
 - **Update checker (built in):** the packaged exe checks GitHub for a newer release and nudges you — a banner in the setup UI, a `check_for_updates` tool, and a one-time note at the start of a Claude conversation. It's **notify-only** (never downloads or installs anything), best-effort, and cached. It contacts `api.github.com`; set `GMAIL_MCP_NO_UPDATE_CHECK=1` to turn all of it off. See `specs/015-update-checker.md`.
 - **Run it as a standalone binary (built; per-OS):** `main.py` exposes `serve` (the stdio server) and `setup` (the UI) subcommands, and `build.py` packages them into **one single-file `gmail-mcp.exe`** with PyInstaller — `python build.py` → `dist/gmail-mcp.exe` (a committed `gmail-mcp.spec` drops Google's bundled discovery docs for ~585 unused APIs, slimming ~143 MB → **~44 MB**; verified `serve` keeps stdout MCP-clean). The exe bundles Python **and every dependency**, so the target machine needs no Python, `venv`, or `pip` — the whole "install dependencies" step disappears. A user **downloads the one file and runs it**: double-clicking opens the setup wizard (a no-argument launch defaults to `setup`), which does the Google setup and writes a Claude Desktop config pointing at the exe with the `serve` argument. Distribution model: ship the exe **without** `credentials.json` — each user creates their own OAuth client via the wizard, keeping it clear of Google's app-verification requirement. Build per-OS (PyInstaller can't cross-compile); unsigned binaries trip SmartScreen/Gatekeeper until code-signed. See `specs/013-packaging-distribution.md`.

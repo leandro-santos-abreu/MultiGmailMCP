@@ -74,6 +74,15 @@ class _Collection:
     def delete(self, **kw):
         return self._call("delete", **kw)
 
+    def insert(self, **kw):
+        return self._call("insert", **kw)
+
+    def quickAdd(self, **kw):  # noqa: N802 — matches the Google API method name
+        return self._call("quickAdd", **kw)
+
+    def query(self, **kw):
+        return self._call("query", **kw)
+
 
 class _Users:
     def __init__(self, fake):
@@ -135,6 +144,26 @@ class FakeGmail:
 
     def users(self):
         return _Users(self)
+
+
+class FakeCalendar:
+    """Stand-in for the Calendar v3 service. Chains are shallower than Gmail's:
+    service.events().list(...).execute(), service.calendarList().list(),
+    service.freebusy().query(body=...). Responses keyed "<collection>.<method>"
+    (e.g. "events.insert", "freebusy.query")."""
+
+    def __init__(self, responses=None):
+        self.responses = dict(responses or {})
+        self.calls = []
+
+    def calendarList(self):  # noqa: N802 — matches the Google API method name
+        return _Collection(self, "calendarList")
+
+    def events(self):
+        return _Collection(self, "events")
+
+    def freebusy(self):
+        return _Collection(self, "freebusy")
 
 
 def message_with_headers(msg_id="m1", thread_id="t1", headers=None, snippet="", parts=None,

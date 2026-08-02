@@ -62,6 +62,10 @@ SCOPES = [
     "https://www.googleapis.com/auth/gmail.modify",
     "https://www.googleapis.com/auth/gmail.settings.basic",
     "https://www.googleapis.com/auth/gmail.settings.sharing",
+    # Calendar (spec 014): read calendars/events + free/busy, and create/update/
+    # delete/RSVP events. Notifying attendees is gated like sending mail.
+    "https://www.googleapis.com/auth/calendar.readonly",
+    "https://www.googleapis.com/auth/calendar.events",
 ]
 
 
