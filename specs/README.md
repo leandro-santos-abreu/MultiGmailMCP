@@ -70,6 +70,7 @@ Expanding scope changes claims the current docs make. Any implementation pass
 | [012](012-setup-ui.md) | Setup & account-management UI (local web app) | none (tooling) | local server; deletes tokens / writes config |
 | [013](013-packaging-distribution.md) | Package as an executable + distribution model | none (tooling) | build tooling; relocates data dir |
 | [014](014-calendar-support.md) | Google Calendar support (read + events) | **calendar.readonly + calendar.events** | event delete; notifying attendees = the send analog |
+| [015](015-update-checker.md) | Update checker for the packaged exe | none | outbound GET to GitHub; notify-only, no auto-install |
 
 ## Implementation status
 
@@ -101,6 +102,11 @@ deliberately excluded).
   notifying event attendees is the Gmail "send" analog — `send_updates` defaults
   to `none` and reuses the confirm-phrase gate. Packaging note: the build's
   discovery-doc filter must also keep `calendar.v3.json`. Ships as v1.1.0.
+
+- **015 update checker** — the packaged exe learns when a newer GitHub release
+  exists and nudges the user (setup-UI banner + optional `check_for_updates`
+  tool). Notify-only: **no auto-download/install**, nothing on `serve`'s stdout,
+  best-effort + cached. Needs a real `version.py` baked into the build first.
 
 - **013 packaging + distribution (code parts implemented; build is manual)** —
   `accounts.DATA_DIR` relocates state when frozen; `main.py` gives `serve`/`setup`
