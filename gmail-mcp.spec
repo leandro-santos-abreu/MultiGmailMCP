@@ -1,6 +1,13 @@
 # -*- mode: python ; coding: utf-8 -*-
-# Committed PyInstaller spec (spec 013), used by build.py so the slimming is
-# reproducible. googleapiclient bundles discovery documents for ~586 Google APIs
+# Committed PyInstaller spec (spec 013), used by build.py.
+#
+# ONEFILE build: produces a single dist/gmail-mcp.exe you can download and run
+# (setup wizard by default; `serve` when Claude Desktop launches it). onefile is
+# chosen for "download one file and run it" friendliness; it self-extracts to a
+# temp dir each launch (slightly slower cold start) but accounts.resolve_data_dir
+# keeps all state in a per-user dir, so the read-only extraction is fine.
+#
+# Slimming: googleapiclient bundles discovery documents for ~586 Google APIs
 # (~99 MB); this server only ever builds the Gmail client, so we keep gmail.*
 # and drop the rest — cutting the bundle from ~143 MB to ~44 MB. gmail.v1.json
 # stays, so build("gmail","v1", ...) still resolves its static discovery doc
@@ -35,26 +42,20 @@ pyz = PYZ(a.pure)
 exe = EXE(
     pyz,
     a.scripts,
+    a.binaries,
+    a.datas,
     [],
-    exclude_binaries=True,
     name='gmail-mcp',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
     upx=True,
-    console=True,
+    upx_exclude=[],
+    runtime_tmpdir=None,
+    console=True,  # `serve` speaks stdio — must stay a console app
     disable_windowed_traceback=False,
     argv_emulation=False,
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
-)
-coll = COLLECT(
-    exe,
-    a.binaries,
-    a.datas,
-    strip=False,
-    upx=True,
-    upx_exclude=[],
-    name='gmail-mcp',
 )

@@ -4,9 +4,9 @@
   (dev/frozen/`GMAIL_MCP_DATA_DIR`, via `resolve_data_dir`) with `server.py` logs
   and the attachments default moved onto it; `main.py` `serve`/`setup` dispatcher;
   `setup_app.config_entry` emits a `["serve"]` config when frozen; `build.py` +
-  `requirements-build.txt` (PyInstaller onedir, hidden-imports, refuses to bundle
+  `requirements-build.txt` (PyInstaller onefile, hidden-imports, refuses to bundle
   secrets). Tested in `tests/test_packaging.py`. **A Windows build has been run
-  and verified:** `python build.py` → `dist/gmail-mcp/`, **~44 MB** onedir. A
+  and verified:** `python build.py` → a single `dist/gmail-mcp.exe`, **~44 MB**. A
   committed `gmail-mcp.spec` drops `googleapiclient`'s bundled discovery docs for
   ~585 unused Google APIs (~99 MB), keeping only `gmail.v1.json` — which still
   resolves `build("gmail","v1", cache_discovery=False)` offline (verified), so no
@@ -75,9 +75,12 @@ non-developers, but the spec must not imply a zero-setup experience.
   One artifact to build, sign, and ship; 012's config generator points Claude
   Desktop's `command` at the exe with `args: ["serve"]` (no `venv`/`python`).
 - **PyInstaller** as the tool (mature, per-OS). Nuitka is a fallback if startup
-  time or size matters. Build **onedir** (a folder/zip), not onefile: onefile
-  extracts to a temp dir every launch, which is slower and worsens the data-path
-  problem below. Revisit an installer (MSI/.pkg) later.
+  time or size matters. Build **onefile** — a single `gmail-mcp.exe` the user can
+  download and run, chosen for that friendliness. onefile self-extracts to a temp
+  dir each launch (slightly slower cold start), but the data-path problem that
+  normally makes onefile awkward is already solved: `resolve_data_dir` keeps all
+  state in a per-user dir, not the temp extraction. (onedir — a folder — starts
+  faster and is the fallback if the cold-start cost ever matters.)
 - **Per-OS builds** — PyInstaller can't cross-compile: build the `.exe` on
   Windows, the `.app` on macOS, an AppImage/tarball on Linux.
 
@@ -133,7 +136,8 @@ CREDENTIALS_FILE = DATA_DIR / "credentials.json"
 - **No bundled data files** — because `credentials.json` is user-provided at
   runtime (Decision 1), there is nothing secret to embed at build time. The
   build spec should *assert* `tokens/` and `credentials.json` are excluded.
-- **Antivirus false positives** on PyInstaller onefile are common; onedir helps.
+- **Antivirus false positives** are more common with onefile than onedir — an
+  accepted cost of the single-file convenience; code signing is the real fix.
 
 ## Security considerations
 
@@ -174,9 +178,9 @@ CREDENTIALS_FILE = DATA_DIR / "credentials.json"
 ## Out of scope / open questions
 
 - **Auto-update** for the binary — a real feature, its own effort; not here.
-- **Installers** (MSI, `.pkg`, Homebrew cask, AppImage integration) vs. shipping
-  a plain zipped onedir — start with the zip, revisit installers if there's
-  demand.
+- **Installers** (MSI, `.pkg`, Homebrew cask, AppImage integration) — the
+  single-file exe already gives "download and run"; revisit installers only if
+  there's demand (e.g. Start-menu entries, auto-update).
 - **Code-signing certificates / notarization** — needs money and a verified
   identity; recommend leaving to whoever distributes, with checksums as the
   interim trust signal.
