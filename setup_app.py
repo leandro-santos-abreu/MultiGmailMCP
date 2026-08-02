@@ -27,6 +27,7 @@ from urllib.parse import parse_qs, urlparse
 
 import accounts
 import gmail_client
+import updates
 
 
 # --------------------------------------------------------------------------
@@ -236,6 +237,7 @@ class SetupApp:
                 "path": str(default_claude_config_path()),
                 "snippet": {"mcpServers": {"gmail-multi-account": entry}},
             },
+            "update": updates.check(),  # cached; only hits GitHub when stale
         }
 
     def _apply_config(self, payload: dict):
@@ -445,6 +447,7 @@ INDEX_HTML = r"""<!doctype html>
 </head>
 <body>
 <div class="wrap">
+  <div id="updatebar"></div>
   <header>
     <h1>Gmail MCP — Setup</h1>
     <p>Connect your Gmail accounts and point Claude Desktop at this server.</p>
@@ -555,10 +558,18 @@ function renderConfig(c){
   el("cfgpath").textContent=c.path;
   el("snippet").textContent=JSON.stringify(c.snippet,null,2);
 }
+function renderUpdate(u){
+  const bar=el("updatebar");
+  if(u && u.update_available){
+    bar.innerHTML=`<div class="note" style="display:flex;justify-content:space-between;align-items:center;gap:1rem;margin-bottom:1rem">`+
+      `<span>Update available — you're on v${esc(u.current)}, <b>${esc(u.latest)}</b> is out.</span>`+
+      `<a href="${esc(u.url)}" target="_blank" rel="noopener"><button class="ghost">Download →</button></a></div>`;
+  } else { bar.innerHTML=""; }
+}
 async function refresh(){
   const {data}=await api("/api/status");
   if(!data)return;
-  renderPrereqs(data.prereqs); renderAccounts(data.accounts); renderConfig(data.config);
+  renderUpdate(data.update); renderPrereqs(data.prereqs); renderAccounts(data.accounts); renderConfig(data.config);
 }
 
 el("credfile").addEventListener("change", async e=>{

@@ -22,8 +22,14 @@ from mcp.types import ToolAnnotations
 
 import accounts
 import gmail_client
+import updates
+from version import __version__
 
-server = MCPServer("gmail-multi-account")
+# Instructions injected at session start. When the cache shows a newer release,
+# add a one-time "update available" note so the model can tell the user near
+# their first prompt (spec 015). Cache-only here — no network on the hot path.
+_instructions = updates.instructions_note() or None
+server = MCPServer("gmail-multi-account", version=__version__, instructions=_instructions)
 
 # Append-only audit trail of every successful send. Gitignored. See README
 # "Sending mail" and specs/007. Deliberately records only non-secret metadata
@@ -104,6 +110,16 @@ def list_accounts() -> str:
     if not names:
         return "No accounts configured yet. Run `python add_account.py <name>` on the server machine first."
     return "Configured accounts: " + ", ".join(names)
+
+
+@server.tool(
+    annotations=ToolAnnotations(read_only_hint=True, idempotent_hint=True, open_world_hint=True)
+)
+def check_for_updates() -> str:
+    """Check whether a newer version of this Gmail MCP server is available.
+    Contacts api.github.com and reports your version plus a download link — it
+    never downloads or installs anything. Use this only when the user asks."""
+    return updates.human_summary()
 
 
 # Tracks in-flight add-account OAuth flows started by gmail_add_account, so the

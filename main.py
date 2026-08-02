@@ -46,7 +46,9 @@ def main(argv: list[str] | None = None) -> int:
     if cmd == "serve":
         _hide_console_on_windows()  # run the stdio server headless (no window)
         import server
+        import updates
 
+        updates.refresh_in_background()  # throttled cache refresh for next session (spec 015)
         server.server.run()  # stdio transport
         return 0
     if cmd == "setup":

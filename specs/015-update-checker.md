@@ -1,6 +1,12 @@
 # Spec 015 — Update checker for the packaged exe
 
-- **Status:** proposed
+- **Status:** **implemented** — `version.py` (`__version__`) + `updates.py`
+  (stdlib, cached in `DATA_DIR`, best-effort). Surfaces three ways: the setup-UI
+  banner (`/api/status` → `update`), the `check_for_updates` MCP tool, and the
+  session-start note baked into `MCPServer(instructions=...)`. `serve` starts a
+  throttled background refresh; `GMAIL_MCP_NO_UPDATE_CHECK=1` disables everything.
+  Tested in `tests/test_updates.py`. (The MCPServer also now reports
+  `version=__version__`.)
 - **New OAuth scope required:** none.
 - **Network:** outbound `GET`s to the GitHub Releases API — on demand (setup UI /
   tool call) and, when the proactive notice is enabled, a **throttled background**
