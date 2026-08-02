@@ -2,8 +2,10 @@
 
 - **Status:** proposed
 - **New OAuth scope required:** none.
-- **Network:** one outbound `GET` to the GitHub Releases API, **on demand**
-  (setup UI / explicit tool call), never silently from `serve`.
+- **Network:** outbound `GET`s to the GitHub Releases API — on demand (setup UI /
+  tool call) and, when the proactive notice is enabled, a **throttled background**
+  check during `serve` (off the stdout path, cached, opt-outable). Never blocks
+  startup.
 - **Destructive:** no. **Checks and notifies only — never downloads or runs
   anything.**
 
@@ -21,8 +23,10 @@ here's the download" nudge closes that gap, without turning into an auto-updater
   avoids, and auto-updating an **unsigned** exe is worse. This spec **only**
   compares versions and shows a link to the release page; the user downloads and
   replaces the exe themselves.
-- **Nothing in `serve`'s stdout.** `serve` speaks MCP over stdout; the checker
-  must never print there. No automatic phone-home on `serve` launch either.
+- **Nothing in `serve`'s stdout, and never blocking.** `serve` speaks MCP over
+  stdout; the checker must never print there and must never delay startup. The
+  proactive notice reads a **cache** at startup; any network refresh runs in a
+  background daemon thread — throttled, best-effort, opt-outable.
 - **Best-effort, never blocking.** No network / GitHub down / rate-limited →
   degrade silently ("couldn't check"); never crash, never delay startup.
 
@@ -85,16 +89,49 @@ Result shape: `{"current": "1.0.0", "latest": "1.1.0", "update_available": true,
    latest."). Its docstring notes it contacts GitHub. This runs inside `serve` but
    is fine because (a) it's user-triggered, not automatic, and (b) it returns a
    value, never writes stdout.
-3. **Never** an automatic background check in `serve`.
+3. **Proactive at the start of a conversation** (opt-outable) — see the next
+   section: the server surfaces a one-time "update available" note via its MCP
+   instructions so Claude mentions it near the user's first prompt.
+
+## Proactive notice at the start of a conversation
+
+Goal: have Claude tell the user about an available update around their **first
+prompt**. The honest constraint first: **an MCP server has no "user sent a
+message" event to hook.** The one primitive that lands in the model's context at
+session start is the server's **`instructions`** (returned in the MCP
+`initialize` response). So use that:
+
+- At `serve` startup the server reads the **cached** update status (no blocking
+  network) and, if an update is available, includes a short line in its
+  `instructions`, e.g.: *"A newer version (vX.Y.Z) is available at <url>. If this
+  is the start of the conversation, tell the user once, then don't mention it
+  again."* Concretely: compute the string at startup and pass it to
+  `MCPServer(instructions=...)` (each Claude Desktop launch is a fresh `serve`
+  process, so it re-reads the cache and gets a fresh notice).
+- Claude Desktop injects those instructions at session start, so the model is
+  aware from the first turn and told to surface it **once**, early — then drop it.
+- A background daemon thread (started by `serve`, **never** on the stdout path,
+  throttled to ~once/day, honoring the off switch) refreshes the cache so the
+  *next* session's instructions are current. The current session uses whatever
+  the cache held at startup.
+
+**Honesty:** this is **model-cooperative**, not a hard guarantee — the same class
+of thing as the send-safety docstrings. MCP can't force a message onto the literal
+first prompt; the instruction makes it very likely, and — importantly — tells the
+model to mention it **once** rather than nag every turn (the note persists in
+context, so "once" must be explicit). If the model ignores it, nothing breaks.
 
 ## Privacy & consent
 
 - The check contacts `api.github.com` — document this plainly (README/setup UI),
   since the project's whole posture is "nothing hosted, localhost only." It sends
   no user data and stores only a timestamp + the latest tag locally.
-- On-demand only (UI load / tool call), cached, no telemetry. Consider a simple
-  off switch (`GMAIL_MCP_NO_UPDATE_CHECK=1`) for users who want zero outbound
-  calls beyond Google.
+- With the proactive notice on, a **throttled (~daily) background check** also
+  runs while `serve` is up, on top of the UI/tool checks. It still sends no user
+  data — GitHub sees only the request. No telemetry; only a timestamp + the latest
+  tag are cached locally.
+- `GMAIL_MCP_NO_UPDATE_CHECK=1` disables **all** of it (UI banner, tool, and the
+  background refresh) for users who want zero outbound calls beyond Google.
 
 ## Testing (all offline)
 
@@ -106,8 +143,11 @@ Result shape: `{"current": "1.0.0", "latest": "1.1.0", "update_available": true,
   failure falls back to the cached value if present.
 - `check_for_updates` tool: given a mocked latest, returns the right string; on
   fetch failure returns a graceful "couldn't check" message (never an exception).
-- Assert the checker is never invoked on a plain `serve` startup (no automatic
-  network call, no stdout writes).
+- Proactive notice: the startup `instructions` string **includes** the update
+  line when the cache reports an update, and **omits** it otherwise or when
+  `GMAIL_MCP_NO_UPDATE_CHECK=1` is set — asserted against the cache, no network.
+- `serve` startup does no **blocking** network and writes nothing to stdout; the
+  background refresh is throttled and skipped when the off switch is set.
 
 ## Out of scope / open questions
 

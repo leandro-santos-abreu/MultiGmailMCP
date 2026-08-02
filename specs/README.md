@@ -104,8 +104,11 @@ deliberately excluded).
   discovery-doc filter must also keep `calendar.v3.json`. Ships as v1.1.0.
 
 - **015 update checker** — the packaged exe learns when a newer GitHub release
-  exists and nudges the user (setup-UI banner + optional `check_for_updates`
-  tool). Notify-only: **no auto-download/install**, nothing on `serve`'s stdout,
+  exists and nudges the user three ways: a setup-UI banner, an optional
+  `check_for_updates` tool, and a **proactive session-start notice** (the server
+  puts a one-time "update available" line in its MCP `instructions` so Claude
+  mentions it near the user's first prompt — model-cooperative, opt-outable).
+  Notify-only: **no auto-download/install**, nothing on `serve`'s stdout,
   best-effort + cached. Needs a real `version.py` baked into the build first.
 
 - **013 packaging + distribution (code parts implemented; build is manual)** —
