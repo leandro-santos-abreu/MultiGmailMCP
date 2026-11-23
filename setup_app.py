@@ -96,12 +96,31 @@ def merge_claude_config(existing_text: str, entry: dict, server_name: str = "gma
     return json.dumps(cfg, indent=2)
 
 
+def _windows_claude_data_dir(local_appdata: Path) -> Path | None:
+    """The folder current Windows builds of Claude Desktop keep their settings
+    in: %LOCALAPPDATA%\\Claude-Data\\<package>\\ (e.g. claude_pzs8sxrjxfjjc).
+    Those builds ignore %APPDATA%\\Claude, which only holds older leftovers.
+    Prefers a folder that already has a config file, then the most recently
+    used one. None when no such folder exists (an older Claude install)."""
+    root = local_appdata / "Claude-Data"
+    try:
+        candidates = [p for p in root.iterdir() if p.is_dir() and p.name.lower().startswith("claude")]
+    except OSError:
+        return None
+    if not candidates:
+        return None
+    return max(candidates, key=lambda p: ((p / "claude_desktop_config.json").exists(), p.stat().st_mtime))
+
+
 def default_claude_config_path(platform: str | None = None, env: dict | None = None) -> Path:
-    """Best-guess path to claude_desktop_config.json for this OS."""
+    """Best-guess path to the claude_desktop_config.json Claude Desktop reads on this OS."""
     platform = platform or sys.platform
     env = env if env is not None else os.environ
     home = Path(env.get("USERPROFILE") or env.get("HOME") or Path.home())
     if platform == "win32":
+        data_dir = _windows_claude_data_dir(Path(env.get("LOCALAPPDATA") or (home / "AppData/Local")))
+        if data_dir is not None:
+            return data_dir / "claude_desktop_config.json"
         base = Path(env.get("APPDATA") or (home / "AppData/Roaming"))
         return base / "Claude" / "claude_desktop_config.json"
     if platform == "darwin":

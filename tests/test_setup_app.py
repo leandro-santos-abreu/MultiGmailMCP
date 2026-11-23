@@ -53,14 +53,57 @@ def test_merge_config_from_empty():
     assert "gmail-multi-account" in merged["mcpServers"]
 
 
+def test_merge_config_preserves_claude_own_settings():
+    # Current Claude Desktop keeps its own preferences in the same file.
+    existing = json.dumps({"preferences": {"theme": "dark"}, "coworkUserFilesPath": "x"})
+    merged = json.loads(setup_app.merge_claude_config(existing, {"command": "py", "args": ["s.py"]}))
+    assert merged["preferences"] == {"theme": "dark"} and merged["coworkUserFilesPath"] == "x"
+    assert "gmail-multi-account" in merged["mcpServers"]
+
+
 @pytest.mark.parametrize("platform, env, expected_tail", [
-    ("win32", {"APPDATA": r"C:\Users\me\AppData\Roaming"}, "Claude/claude_desktop_config.json"),
     ("darwin", {"HOME": "/Users/me"}, "Application Support/Claude/claude_desktop_config.json"),
     ("linux", {"HOME": "/home/me"}, ".config/Claude/claude_desktop_config.json"),
 ])
 def test_default_config_path(platform, env, expected_tail):
     p = setup_app.default_claude_config_path(platform=platform, env=env).as_posix()
     assert p.endswith(expected_tail)
+
+
+def _win_env(tmp_path):
+    return {"APPDATA": str(tmp_path / "Roaming"), "LOCALAPPDATA": str(tmp_path / "Local")}
+
+
+def test_default_config_path_windows_older_claude_uses_appdata(tmp_path):
+    p = setup_app.default_claude_config_path(platform="win32", env=_win_env(tmp_path))
+    assert p == tmp_path / "Roaming" / "Claude" / "claude_desktop_config.json"
+
+
+def test_default_config_path_windows_current_claude_uses_claude_data(tmp_path):
+    # Current Claude Desktop reads %LOCALAPPDATA%\Claude-Data\<package>\ and
+    # ignores %APPDATA%\Claude, even when an old config is still there.
+    pkg = tmp_path / "Local" / "Claude-Data" / "claude_pzs8sxrjxfjjc"
+    pkg.mkdir(parents=True)
+    (pkg.parent / "README.txt").write_text("not a folder", encoding="utf-8")
+    old = tmp_path / "Roaming" / "Claude"
+    old.mkdir(parents=True)
+    (old / "claude_desktop_config.json").write_text("{}", encoding="utf-8")
+
+    p = setup_app.default_claude_config_path(platform="win32", env=_win_env(tmp_path))
+
+    assert p == pkg / "claude_desktop_config.json"
+
+
+def test_default_config_path_windows_prefers_folder_with_a_config(tmp_path):
+    root = tmp_path / "Local" / "Claude-Data"
+    used = root / "claude_used"
+    used.mkdir(parents=True)
+    (used / "claude_desktop_config.json").write_text("{}", encoding="utf-8")
+    (root / "claude_empty").mkdir()
+
+    p = setup_app.default_claude_config_path(platform="win32", env=_win_env(tmp_path))
+
+    assert p == used / "claude_desktop_config.json"
 
 
 @pytest.mark.parametrize("name, ok", [

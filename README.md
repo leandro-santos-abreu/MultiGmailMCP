@@ -111,6 +111,12 @@ add more accounts later the same way, any time.
 `"C:\\Users\\you\\gmail-mcp-server\\venv\\Scripts\\python.exe"`, and escape
 backslashes like that.)
 
+(Windows: current versions of Claude Desktop keep this file in
+`%LOCALAPPDATA%\Claude-Data\claude_pzs8sxrjxfjjc\`, and ignore the older
+`%APPDATA%\Claude\claude_desktop_config.json` that many guides point to. **Edit
+Config** opens the right one. If you edit by hand, also keep the other keys
+Claude stores in that file, such as `preferences`.)
+
 3. Save the file and fully restart Claude Desktop.
 
 That's it — ask Claude something like *"what accounts do you have access
@@ -281,6 +287,7 @@ for a tool only you use, so it's not worth doing here.
 
 - **"No module named mcp"** — you're not using the venv's Python. Double check the `command` path in your Claude Desktop config.
 - **Server doesn't show up in Claude** — config JSON is probably invalid (missing comma, wrong path). Check Claude Desktop's MCP logs (same Developer settings page) for the exact error.
+- **Server doesn't show up on Windows after "Apply to config"** — setup wizards up to v1.1.1 wrote to `%APPDATA%\Claude\claude_desktop_config.json`, which current Claude Desktop no longer reads (it uses `%LOCALAPPDATA%\Claude-Data\claude_pzs8sxrjxfjjc\`). Open the newer exe, click **Apply to config** again (your accounts are kept), then fully quit and reopen Claude.
 - **`invalid_grant` / "authorization has expired"** — see "Why do I have to reauthorize so often?" above; rerun `add_account.py <name>`, or click **Reauthorize** in the setup UI (`python setup_app.py`).
 - **"Access blocked: this app is blocked"** instead of the usual warning — you likely forgot to add that Google address as a test user in Step 1.4.
 
