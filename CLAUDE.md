@@ -9,13 +9,13 @@ it's deliberately not a duplicate of the README.
 - `accounts.py` — token storage/loading/refresh, defines `SCOPES`
 - `gmail_client.py` — thin Gmail API wrapper; every function takes `account_name` first and resolves credentials itself via `accounts.load_credentials`
 - `calendar_client.py` — thin Google Calendar v3 wrapper, same pattern as `gmail_client`; backs the `calendar_*` tools (specs/014). Notifying attendees (`send_updates="all"`) is the Gmail-"send" analog: gated by `GMAIL_MCP_SEND_PHRASE` and audited.
-- `server.py` — MCP tool definitions (stdio transport); thin wrappers around `gmail_client`
+- `server.py` — MCP tool definitions (stdio transport); thin wrappers around `gmail_client`. Also sends the server `instructions` every session: `ACCOUNT_ROUTING_INSTRUCTIONS` (all accounts are live at once; map company/domain/address to a nickname via `list_accounts`; fall back to `gmail_search_all` before saying "not found"; prefer this server over a single-account Gmail connector), plus the update note when there is one
 - `add_account.py` — one-time interactive OAuth CLI, not imported by the server
 - `setup_app.py` — optional local web UI (stdlib `http.server`) for setup/account management; standalone tooling, **not imported by the server**; reuses `accounts`/`gmail_client`; localhost-only + one-time-token gated; never renders token/credentials contents (specs/012)
 - `main.py` — packaging entry point with `serve` (stdio server) / `setup` (UI) subcommands; what the built executable runs (specs/013). `build.py` packages it with PyInstaller. `serve` hides the console window on Windows so it runs headless when Claude Desktop launches it; a no-argument launch (double-click) opens `setup`.
 - `version.py` — single source of truth for `__version__`; bump it in lockstep with the release tag (specs/015)
 - `updates.py` — best-effort GitHub-release update check (notify-only, stdlib, cached in `DATA_DIR`). Feeds the setup-UI banner, the `check_for_updates` tool, and the session-start "update available" note in the server `instructions`. `GMAIL_MCP_NO_UPDATE_CHECK=1` disables it. Never on `serve`'s stdout (specs/015)
-- `tests/` — pytest suite (132 tests) that mocks `gmail_client._service`, so it runs offline with no real credentials or token files. Covers the pure helpers, the `AccountError` convention, every tool group (read/draft/organize/settings/forwarding/attachments), the send audit + confirm gate, the setup UI's request handling, and the packaging data-dir/dispatch logic. The live-account manual loop below still covers what a fake can't (real OAuth/refresh, an actual send, a real PyInstaller build).
+- `tests/` — pytest suite (167 tests) that mocks `gmail_client._service`, so it runs offline with no real credentials or token files. Covers the pure helpers, the `AccountError` convention, every tool group (read/draft/organize/settings/forwarding/attachments), the send audit + confirm gate, the setup UI's request handling, and the packaging data-dir/dispatch logic. The live-account manual loop below still covers what a fake can't (real OAuth/refresh, an actual send, a real PyInstaller build).
 
 ## Commands
 

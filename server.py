@@ -26,11 +26,33 @@ import gmail_client
 import updates
 from version import __version__
 
-# Instructions injected at session start. When the cache shows a newer release,
-# add a one-time "update available" note so the model can tell the user near
-# their first prompt (spec 015). Cache-only here — no network on the hot path.
-_instructions = updates.instructions_note() or None
-server = MCPServer("gmail-multi-account", version=__version__, instructions=_instructions)
+# Instructions injected at session start. Always: how to pick the right account.
+# Without this, a model searches one inbox, finds nothing, and tells the user to
+# "connect the other account", which is what single-account Gmail connectors
+# make them do and exactly what this server exists to avoid.
+ACCOUNT_ROUTING_INSTRUCTIONS = (
+    "This server connects several Google accounts (Gmail and Google Calendar) at the same "
+    "time, each under a nickname that every gmail_* and calendar_* tool takes as its "
+    "`account` argument. All of them are available at once, so never ask the user to "
+    "disconnect, reconnect, or switch accounts. Call list_accounts to see each nickname and "
+    "the email address behind it. When the user refers to an account by company, domain, "
+    "person, or address, use the nickname whose email address matches. When the user doesn't "
+    "say which account, or a search in one account finds nothing, use gmail_search_all (or "
+    "calendar_list_events_all) to check every account before concluding that something isn't "
+    "there, and say which account each result came from. If another Gmail or Google Calendar "
+    "connector is also available, prefer this server's tools, and use the other connector "
+    "only for an address that list_accounts doesn't show."
+)
+
+
+def _build_instructions() -> str:
+    """The routing guidance, plus a one-time "update available" note when the
+    cache shows a newer release, so the model can tell the user near their
+    first prompt (spec 015). Cache-only — no network on the startup path."""
+    return "\n\n".join(filter(None, [ACCOUNT_ROUTING_INSTRUCTIONS, updates.instructions_note()]))
+
+
+server = MCPServer("gmail-multi-account", version=__version__, instructions=_build_instructions())
 
 # Append-only audit trail of every successful send. Gitignored. See README
 # "Sending mail" and specs/007. Deliberately records only non-secret metadata
@@ -103,14 +125,18 @@ def _audit_send(account: str, draft_id: str, message_id: str, to: str, subject: 
 
 
 @server.tool(
-    annotations=ToolAnnotations(read_only_hint=True, idempotent_hint=True, open_world_hint=False)
+    annotations=ToolAnnotations(read_only_hint=True, idempotent_hint=True, open_world_hint=True)
 )
 def list_accounts() -> str:
-    """List the Gmail accounts currently configured on this server, by name."""
-    names = accounts.list_account_names()
-    if not names:
+    """List every Google account connected to this server: its nickname (the
+    `account` argument for all other tools) and the email address behind it.
+    All accounts are usable at the same time. Call this first when the user
+    refers to an account by company, domain, person, or address, and use the
+    nickname whose email matches. An account whose authorization has expired
+    shows an "error" entry instead of an email address."""
+    if not accounts.list_account_names():
         return "No accounts configured yet. Run `python add_account.py <name>` on the server machine first."
-    return "Configured accounts: " + ", ".join(names)
+    return json.dumps(gmail_client.list_accounts_with_emails(), indent=2)
 
 
 @server.tool(
@@ -222,9 +248,13 @@ def gmail_add_account_status(account_name: str) -> str:
 )
 def gmail_search(account: str, query: str, max_results: int = 10) -> str:
     """Search one Gmail account and return matching messages (id, from, subject, date, snippet).
+    If the user didn't say which account, or this finds nothing, use
+    gmail_search_all to check every connected account before concluding the
+    mail isn't there.
 
     Args:
-        account: name of a configured account, from list_accounts
+        account: nickname of a configured account, from list_accounts (which
+            shows the email address behind each nickname)
         query: a Gmail search query, e.g. "from:boss@example.com is:unread", "subject:invoice after:2026/01/01"
         max_results: maximum number of messages to return (default 10)
     """

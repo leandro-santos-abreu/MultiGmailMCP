@@ -484,6 +484,21 @@ def account_info(account_name: str) -> dict:
     }
 
 
+def list_accounts_with_emails() -> list[dict]:
+    """Every configured account nickname with the Gmail address behind it, so a
+    caller can tell which nickname is "the Acme account" (by company, domain,
+    or address) instead of guessing. An account whose authorization has expired
+    or been revoked is listed with {"error": ...} rather than sinking the whole
+    listing, same as search_all. Other failures still propagate."""
+    out: list[dict] = []
+    for name in accounts.list_account_names():
+        try:
+            out.append({"account": name, "email_address": account_info(name)["email_address"]})
+        except accounts.AccountError as e:
+            out.append({"account": name, "error": str(e)})
+    return out
+
+
 def list_labels(account_name: str) -> list[dict]:
     """List the account's labels as {id, name, type}. Use to translate the
     labelIds from gmail_read, or to find the id a modify tool needs."""

@@ -123,7 +123,7 @@ for invoices from this month."*
 
 | Tool | What it does |
 |---|---|
-| `list_accounts` | Lists configured account names |
+| `list_accounts` | Lists every connected account's nickname and the email address behind it |
 | `gmail_add_account(account)` | Starts connecting a new Gmail account — opens a browser for the user to sign in (interactive machines only) |
 | `gmail_add_account_status(account)` | Reports whether an in-progress add-account sign-in finished |
 | `gmail_account_info(account)` | Shows the real email address behind an account name, plus message/thread totals |
@@ -165,6 +165,22 @@ for invoices from this month."*
 | `calendar_create_event` / `calendar_update_event(account, ...)` | Create/edit an event; `send_updates="all"` (emails attendees) is gated |
 | `calendar_respond_to_event(account, event_id, response, ...)` | RSVP accepted/declined/tentative |
 | `calendar_delete_event(account, event_id, ...)` | Deletes an event — **destructive** (harder to recover than Gmail trash) |
+
+### Using several accounts at once
+
+Every connected account is available in every conversation, so you never
+disconnect one to use another. The server also tells Claude, at the start of
+each conversation, how to pick the right account:
+
+- When you name an account by company, domain, or address ("the Acme
+  inbox"), Claude matches it against the email addresses `list_accounts` shows.
+- When you don't name one, or a search in one account finds nothing, Claude
+  checks every account with `gmail_search_all` (or `calendar_list_events_all`)
+  before saying something isn't there.
+- If Claude's built-in Gmail or Calendar connector is also turned on, Claude
+  is told to prefer this server. That connector holds only one account at a
+  time, so turning it off in Claude's connector settings stops Claude from
+  using it by mistake.
 
 ---
 
